@@ -116,6 +116,13 @@ class FeaturePreprocessor:
         self.column_order_ = order
         # original column index of each model input column
         self.original_columns_ = kept[order]
+        # number of categories of each model input column (0 for numeric ones)
+        counts = np.zeros(len(kept), dtype=int)
+        if self.categorical_mask_.any():
+            categories = self.transformer_.named_transformers_["cat"].categories_
+            # the encoder lists a missing value as one more category (always last); it keeps its NaN code
+            counts[self.numeric_mask_.sum() :] = [int((~pd.isna(c)).sum()) for c in categories]
+        self.category_counts_ = counts[order]
         return self
 
     def transform(self, X) -> np.ndarray:

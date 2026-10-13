@@ -48,6 +48,7 @@ def test_preprocessor_types_columns_and_drops_constants():
     assert out.shape == (40, 4)  # numeric first (num, num_str), then categorical codes (few, text)
     assert pre.original_columns_.tolist() == [0, 4, 1, 2]
     assert set(np.unique(out[:, 3])) == {0.0, 1.0}
+    assert pre.category_counts_.tolist() == [0, 0, 3, 2]
 
 
 def test_unknown_category_becomes_missing_and_small_tables_stay_numeric():

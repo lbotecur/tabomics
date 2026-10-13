@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +26,33 @@ from tabomics.model.io import load_model
 # (AUROC 0.5 or NaN on gisette: 7000 rows x 5000 columns x 192) while low-memory was correct; 2**31 keeps a
 # margin. It depends on the table only, not on the GPU, so results do not change across GPUs.
 LOW_MEMORY_AUTO_ELEMENTS = 2**31
+
+
+@dataclass(frozen=True)
+class EnsembleMember:
+    """One pass of an ensemble: a relabelling of the table that should not change the answer.
+
+    The model should be indifferent to the order of the columns, to the codes given to the categories of a column,
+    and to the indices given to the classes; it is only approximately so. Averaging over such relabellings removes
+    that residual dependence.
+
+    Attributes:
+        columns: Order in which the (preprocessed) columns enter the model.
+        codes: For each categorical column (by its preprocessed index), the new code of each category code.
+        classes: New index of each class (classifier only), or None.
+    """
+
+    columns: np.ndarray
+    codes: dict[int, np.ndarray]
+    classes: np.ndarray | None = None
+
+    def inputs(self, X: np.ndarray) -> np.ndarray:
+        """Applies the relabelling to preprocessed rows (missing values stay missing)."""
+        X = X.copy()
+        for column, new_code in self.codes.items():
+            observed = ~np.isnan(X[:, column])
+            X[observed, column] = new_code[X[observed, column].astype(int)]
+        return X[:, self.columns]
 
 
 def default_device() -> torch.device:
@@ -56,6 +85,9 @@ class TabOmicsEstimator(BaseEstimator):
         infer_categorical: Detect the other categorical columns.
         max_unique_for_categorical: Most distinct values of a numeric column inferred as categorical.
         min_samples_for_categorical_inference: Fewest observed rows for that inference.
+        n_estimators: Number of passes averaged. The first is the table as given; each other one relabels it (column
+            order, category codes, and for the classifier class indices). 1, the default, is a single pass.
+        random_state: Seed of those relabellings.
     """
 
     def __init__(
@@ -73,6 +105,8 @@ class TabOmicsEstimator(BaseEstimator):
         infer_categorical: bool = True,
         max_unique_for_categorical: int = 10,
         min_samples_for_categorical_inference: int = 30,
+        n_estimators: int = 1,
+        random_state: int = 0,
     ):
         self.model = model
         self.cache_dir = cache_dir
@@ -87,6 +121,8 @@ class TabOmicsEstimator(BaseEstimator):
         self.infer_categorical = infer_categorical
         self.max_unique_for_categorical = max_unique_for_categorical
         self.min_samples_for_categorical_inference = min_samples_for_categorical_inference
+        self.n_estimators = n_estimators
+        self.random_state = random_state
 
     def _prepare(self, X_train) -> np.ndarray:
         """Loads the model (once), applies the settings and fits the preprocessing; returns the training inputs."""
@@ -112,15 +148,49 @@ class TabOmicsEstimator(BaseEstimator):
         self.n_features_in_ = self.preprocessor_.n_features_in_
         return X
 
-    def _run(self, X_test, y_train: np.ndarray, **extras) -> TabOmicsOutput:
-        """One forward pass over the training rows and the test rows, without gradients.
+    def _make_members(self, num_classes: int | None = None) -> list[EnsembleMember]:
+        """The passes of the ensemble: the table as given, then n_estimators - 1 random relabellings."""
+        if self.n_estimators < 1:
+            raise ValueError(f"n_estimators must be at least 1, got {self.n_estimators}")
+        counts = self.preprocessor_.category_counts_
+        identity = EnsembleMember(np.arange(len(counts)), {}, None)
+        rng = np.random.default_rng(self.random_state)
+        members = [identity]
+        for _ in range(self.n_estimators - 1):
+            columns = rng.permutation(len(counts))
+            codes = {int(k): rng.permutation(int(n)) for k, n in enumerate(counts) if n > 1}
+            classes = rng.permutation(num_classes) if num_classes and num_classes > 1 else None
+            members.append(EnsembleMember(columns, codes, classes))
+        return members
+
+    def _passes(
+        self, X_test, relabel_classes: bool = True, **extras
+    ) -> Iterator[tuple[EnsembleMember, TabOmicsOutput]]:
+        """Runs every pass of the ensemble on the training rows and the test rows.
 
         Args:
             X_test: Test rows, in the original columns.
+            relabel_classes: Apply the members' class relabelling (off for embeddings, see embeddings()).
+            **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
+
+        Yields:
+            Each member and its output.
+        """
+        test = self.preprocessor_.transform(X_test)
+        targets = self._model_targets()
+        for member in self.members_:
+            x = np.concatenate([member.inputs(self.X_train_), member.inputs(test)])
+            y = member.classes[targets] if relabel_classes and member.classes is not None else targets
+            yield member, self._forward(x, y, **extras)
+
+    def _forward(self, x: np.ndarray, y_train: np.ndarray, **extras) -> TabOmicsOutput:
+        """One forward pass, without gradients.
+
+        Args:
+            x: Training rows followed by test rows, preprocessed, shape (rows, columns).
             y_train: Training targets as the model reads them (class indices, or standardized values).
             **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
         """
-        x = np.concatenate([self.X_train_, self.preprocessor_.transform(X_test)])
         x = torch.from_numpy(x).unsqueeze(0).to(torch.float).to(self.device_)
         y = torch.from_numpy(np.asarray(y_train)).unsqueeze(0).to(torch.float).to(self.device_)
         model, train_size = self.model_, len(self.X_train_)
@@ -143,29 +213,48 @@ class TabOmicsEstimator(BaseEstimator):
             torch.cuda.empty_cache()
             return forward(True)
 
-    def embeddings(self, X_test) -> np.ndarray:
+    def embeddings(self, X_test, reduce: str = "mean") -> np.ndarray:
         """Embedding of each test row: its label-column representation before the decoder.
+
+        With several estimators, the passes relabel columns and category codes only: a pass with other class
+        indices encodes the labels differently, and its embeddings would not be comparable.
 
         For embeddings of the training rows comparable with these, use out_of_fold_embeddings: a training row
         seen with its own label is not in the same situation as a test row.
 
+        Args:
+            X_test: Test rows.
+            reduce: "mean" averages the passes; "concat" puts them side by side.
+
         Returns:
-            Shape (test rows, embedding size).
+            Shape (test rows, embedding size), or (test rows, n_estimators x embedding size) with "concat".
         """
-        out = self._run(X_test, self._model_targets(), return_embeddings=True)
-        return out.embeddings[0, len(self.X_train_) :].float().cpu().numpy()
+        if reduce not in ("mean", "concat"):
+            raise ValueError(f"reduce must be 'mean' or 'concat', got {reduce!r}")
+        train_size = len(self.X_train_)
+        pieces = [
+            out.embeddings[0, train_size:].float().cpu().numpy()
+            for _, out in self._passes(X_test, relabel_classes=False, return_embeddings=True)
+        ]
+        return np.mean(pieces, axis=0) if reduce == "mean" else np.concatenate(pieces, axis=1)
 
     def feature_importance(self, X_test) -> np.ndarray:
         """Attention of the label column to each feature, averaged over test rows, heads and layers.
 
-        This is the importance measure of TabPFN-Wide. Constant columns, never seen by the model, get NaN.
+        This is the importance measure of TabPFN-Wide. With several estimators each column has been at several
+        positions, and the scores are averaged over the passes, which removes the effect of the position. Constant
+        columns, never seen by the model, get NaN.
 
         Returns:
             One score per original column, shape (n_features_in_,).
         """
-        attention = self._run(X_test, self._model_targets(), return_label_attention=True).label_attention
+        total = np.zeros(self.n_features_in_)
+        for member, out in self._passes(X_test, return_label_attention=True):
+            attention = out.label_attention[:-1].cpu().numpy()  # the label column is last
+            total[self.preprocessor_.original_columns_[member.columns]] += attention
         scores = np.full(self.n_features_in_, np.nan)
-        scores[self.preprocessor_.original_columns_] = attention[:-1].cpu().numpy()  # the label is last
+        kept = self.preprocessor_.original_columns_
+        scores[kept] = total[kept] / len(self.members_)
         return scores
 
     def _default_model(self) -> str:
