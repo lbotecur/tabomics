@@ -172,6 +172,16 @@ def label_attention_weights(attention: nn.MultiheadAttention, x: torch.Tensor) -
     return weights.mean(dim=1)[:, 0, :]
 
 
+def _no_fast_path(key: torch.Tensor, value: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Key and value as new views of the same data, so that query, key and value are distinct tensor objects.
+
+    When the three are one object and the module is in evaluation mode, nn.MultiheadAttention takes a fused
+    "fast path" that rounds slightly differently (differences of ~1e-7). The published models were trained and
+    evaluated on the regular path, so it is used always: results then do not depend on train/eval mode.
+    """
+    return key.view_as(key), value.view_as(value)
+
+
 class TransformerBlock(nn.Module):
     """Attention between the columns of each row, attention between rows, and an MLP.
 
@@ -229,8 +239,9 @@ class TransformerBlock(nn.Module):
 
         def between_columns(inp: torch.Tensor) -> torch.Tensor:
             # need_weights=False lets PyTorch use scaled_dot_product_attention, which never builds the (C, C)
-            # weights; the label row of the attention is computed apart when it is asked for
-            out = self.self_attention_between_features(inp, inp, inp, need_weights=False)[0]
+            # weights; the label row of the attention is computed apart when it is asked for. Key and value are
+            # views (distinct tensor objects): see _no_fast_path.
+            out = self.self_attention_between_features(inp, *_no_fast_path(inp, inp), need_weights=False)[0]
             if capture_label_attention:
                 weights = label_attention_weights(self.self_attention_between_features, inp)
                 attention_sum[0] += weights.float().sum(dim=0)
@@ -247,14 +258,12 @@ class TransformerBlock(nn.Module):
         x = x.transpose(1, 2).reshape(batch_size * num_columns, num_rows, embedding_size)
 
         def between_rows(inp: torch.Tensor) -> torch.Tensor:
-            # Query, key and value are separate slices on purpose: passing one tensor three times would let
-            # nn.MultiheadAttention take its fused fast path at inference, which rounds differently from the path
-            # the published models were evaluated with.
+            context = inp[:, :train_size]
             train_out = self.self_attention_between_datapoints(
-                inp[:, :train_size], inp[:, :train_size], inp[:, :train_size], need_weights=False
+                context, *_no_fast_path(context, context), need_weights=False
             )[0]
             test_out = self.self_attention_between_datapoints(
-                inp[:, train_size:], inp[:, :train_size], inp[:, :train_size], need_weights=False
+                inp[:, train_size:], *_no_fast_path(context, context), need_weights=False
             )[0]
             return residual_norm(self.norm2, torch.cat([train_out, test_out], dim=1) + inp, inp)
 

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Luis Bote-Curiel
+# Derived from nanoTabPFN (TFM-Playground, Copyright 2025 Prior Labs GmbH, AutoML Freiburg and Alexander
+# Pfefferle, Apache License 2.0; see LICENSES/Apache-2.0-nanoTabPFN.txt). Modified (see inference/base.py).
+"""The classifier."""
+
+from __future__ import annotations
+
+import numpy as np
+import torch
+from sklearn.base import ClassifierMixin
+from sklearn.preprocessing import LabelEncoder
+
+from tabomics.inference.base import TabOmicsEstimator
+
+
+class Classifier(ClassifierMixin, TabOmicsEstimator):
+    """Classifies the rows of a table in context, with a scikit-learn interface.
+
+    `fit` only stores the training rows (no weights change); `predict_proba` runs the model once over the
+    training and test rows. Labels can be any values (strings, non-contiguous integers); at most
+    `num_outputs` classes (10 for v2).
+
+    See TabOmicsEstimator for the parameters.
+
+    Example:
+        >>> clf = Classifier(model="path/to/model.pth").fit(X_train, y_train)
+        >>> proba = clf.predict_proba(X_test)
+    """
+
+    def fit(self, X_train, y_train) -> Classifier:
+        """Stores the training rows and encodes the labels as 0..C-1 (original labels in `classes_`)."""
+        self.X_train_ = self._prepare(X_train)
+        self.label_encoder_ = LabelEncoder()
+        self.y_train_ = self.label_encoder_.fit_transform(y_train)
+        self.classes_ = self.label_encoder_.classes_
+        if len(self.classes_) > self.model_.config.num_outputs:
+            raise ValueError(
+                f"This model supports at most {self.model_.config.num_outputs} classes, "
+                f"but the training data has {len(self.classes_)}."
+            )
+        return self
+
+    def _model_targets(self) -> np.ndarray:
+        return self.y_train_
+
+    def predict_proba(self, X_test) -> np.ndarray:
+        """Class probabilities of the test rows, shape (rows, classes), columns in the order of `classes_`."""
+        logits = self._run(X_test, self.y_train_).logits.float().squeeze(0)
+        # the model has num_outputs logits; keep those of the classes present in the training rows
+        return torch.softmax(logits[:, : len(self.classes_)], dim=1).cpu().numpy()
+
+    def predict(self, X_test) -> np.ndarray:
+        """Most probable class of each test row, as an original label."""
+        return self.label_encoder_.inverse_transform(self.predict_proba(X_test).argmax(axis=1))

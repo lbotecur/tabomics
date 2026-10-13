@@ -12,7 +12,8 @@ from tfmplayground.models.nanotabpfn import NanoTabPFNModel
 
 torch.manual_seed(0)
 model = NanoTabPFNModel(embedding_size=16, num_attention_heads=2, mlp_hidden_size=32, num_layers=2, num_outputs=10)
-model.eval()
+# Left in training mode (no .eval()), as the reference classifier ran it: v2 was trained and evaluated on that
+# path of nn.MultiheadAttention (see tabomics.model.layers._no_fast_path).
 rng = np.random.default_rng(0)
 x = rng.normal(size=(2, 30, 7)).astype(np.float32)
 x[0, 3, 2] = np.nan  # missing values, in training and test rows
