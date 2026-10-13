@@ -7,8 +7,8 @@ name = "tabomics"
 dynamic = ["version"]
 description = "Tabular foundation model for wide omics data."
 readme = "README.md"
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
 authors = [{ name = "Luis Bote-Curiel" }]
 requires-python = ">=3.10"
 classifiers = [

@@ -11,6 +11,7 @@ feature importance.
 
 ## Licence and credits
 
-Apache License 2.0 (see [LICENSE](LICENSE)). TabOmics derives from the nanoTabPFN architecture
-(TFM-Playground, Pfefferle et al.) and uses a synthetic-table generator derived from TabICL's graph prior; see
-[NOTICE](NOTICE).
+TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
+It derives from the nanoTabPFN architecture (TFM-Playground, Pfefferle et al., Apache License 2.0) and uses a
+synthetic-table generator derived from TabICL's graph prior (BSD 3-Clause); see [NOTICE](NOTICE) and
+[LICENSES](LICENSES).

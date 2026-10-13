@@ -6,4 +6,4 @@ authors:
   - family-names: "Bote-Curiel"
     given-names: "Luis"
 repository-code: "https://github.com/lbotecur/tabomics"
-license: Apache-2.0
+license: GPL-3.0-or-later
