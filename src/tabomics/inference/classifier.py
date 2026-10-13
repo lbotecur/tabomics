@@ -24,7 +24,7 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
     See TabOmicsEstimator for the parameters.
 
     Example:
-        >>> clf = Classifier(model="path/to/model.pth").fit(X_train, y_train)
+        >>> clf = Classifier().fit(X_train, y_train)  # the default model, v2, downloaded once
         >>> proba = clf.predict_proba(X_test)
     """
 
@@ -40,6 +40,11 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
                 f"but the training data has {len(self.classes_)}."
             )
         return self
+
+    def _default_model(self) -> str:
+        from tabomics.hub import DEFAULT_CLASSIFIER
+
+        return DEFAULT_CLASSIFIER
 
     def _model_targets(self) -> np.ndarray:
         return self.y_train_

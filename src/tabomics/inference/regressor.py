@@ -40,6 +40,7 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         self,
         model: TabOmicsModel | str | Path | None = None,
         bucket_borders: torch.Tensor | str | Path | None = None,
+        cache_dir: str | Path | None = None,
         device: str | torch.device | None = None,
         amp_dtype: torch.dtype | None = None,
         low_memory: bool | str = True,
@@ -54,6 +55,7 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
     ):
         super().__init__(
             model=model,
+            cache_dir=cache_dir,
             device=device,
             amp_dtype=amp_dtype,
             low_memory=low_memory,
@@ -81,6 +83,9 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         self.y_mean_, self.y_std_ = target_stats_numpy(y_train)
         self.y_train_ = standardize(y_train, self.y_mean_, self.y_std_)
         return self
+
+    def _default_model(self) -> str:
+        raise ValueError("No model given: TabOmics has no regression model of its own yet; pass one (model=...).")
 
     def _model_targets(self) -> np.ndarray:
         return self.y_train_
