@@ -38,8 +38,8 @@ class PublishedModel:
 PUBLISHED_MODELS: dict[str, PublishedModel] = {
     "v2": PublishedModel(
         repo_id="lbotecur/tabomics-v2",
-        revision=None,  # set when the weights are published
-        sha256=None,
+        revision="9fb540dc21e0feb7f6550f87d9896a26ed9d9435",
+        sha256="bedc7594adf4e11ce4292f450cd01fc7be5955fc263f1e9b9eca960720d834e6",
         task="classification",
         description="TabOmics v2: 7.3M parameters, trained on synthetic tables up to 3000 columns.",
     ),
