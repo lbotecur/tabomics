@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Luis Bote-Curiel
 # Derived from nanoTabPFN (TFM-Playground, Copyright 2025 Prior Labs GmbH, AutoML Freiburg and Alexander
-# Pfefferle, Apache License 2.0; see LICENSES/Apache-2.0-nanoTabPFN.txt). Modified: missing-value channel,
+# Pfefferle, Apache License 2.0; see LICENSES/Apache-2.0-TFM-Playground.txt). Modified: missing-value channel,
 # configurable feature clip, test-row indicator for the targets, low-memory inference, label-attention capture.
 """Building blocks of TabOmicsModel: input encoders, the transformer block and the decoder.
 
