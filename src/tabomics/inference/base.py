@@ -17,7 +17,7 @@ from sklearn.base import BaseEstimator
 
 from tabomics.inference.preprocessing import FeaturePreprocessor
 from tabomics.model import TabOmicsModel, TabOmicsOutput
-from tabomics.model.io import load_checkpoint
+from tabomics.model.io import load_model
 
 # With low_memory="auto", a forward pass whose (rows, columns + 1, embedding) table has at least this many
 # elements runs in low-memory mode. Around 2**32 elements the normal path of PyTorch returned wrong results
@@ -35,20 +35,13 @@ def default_device() -> torch.device:
     return torch.device("cpu")
 
 
-def resolve_model(model: TabOmicsModel | str | Path | None) -> TabOmicsModel:
-    """The model to use: an instance as given, or loaded from a checkpoint file."""
-    if model is None:
-        raise ValueError("No model given: pass a TabOmicsModel or the path of a checkpoint.")
-    if isinstance(model, TabOmicsModel):
-        return model
-    return load_checkpoint(model)
-
-
 class TabOmicsEstimator(BaseEstimator):
     """Base of Classifier and Regressor (scikit-learn compatible: parameters are stored as given).
 
     Args:
-        model: A TabOmicsModel, or the path of a checkpoint.
+        model: A published model's name ("v2"), a release directory or `.safetensors` file, a training checkpoint
+            (`.pth`), or a TabOmicsModel. None: the default model of the estimator (the classifier: "v2").
+        cache_dir: Where published models are downloaded; default Hugging Face's cache.
         device: Where to run; default CUDA, else MPS, else CPU.
         amp_dtype: Mixed precision, e.g. torch.bfloat16 (much faster on wide tables on GPU); None runs in
             float32.
@@ -68,6 +61,7 @@ class TabOmicsEstimator(BaseEstimator):
     def __init__(
         self,
         model: TabOmicsModel | str | Path | None = None,
+        cache_dir: str | Path | None = None,
         device: str | torch.device | None = None,
         amp_dtype: torch.dtype | None = None,
         low_memory: bool | str = True,
@@ -81,6 +75,7 @@ class TabOmicsEstimator(BaseEstimator):
         min_samples_for_categorical_inference: int = 30,
     ):
         self.model = model
+        self.cache_dir = cache_dir
         self.device = device
         self.amp_dtype = amp_dtype
         self.low_memory = low_memory
@@ -99,7 +94,8 @@ class TabOmicsEstimator(BaseEstimator):
             raise ValueError(f"low_memory must be True, False or 'auto', got {self.low_memory!r}")
         if getattr(self, "model_", None) is None or getattr(self, "_model_source", None) is not self.model:
             self.device_ = torch.device(self.device) if self.device is not None else default_device()
-            self.model_ = resolve_model(self.model).to(self.device_).eval()
+            source = self.model if self.model is not None else self._default_model()
+            self.model_ = load_model(source, cache_dir=self.cache_dir).to(self.device_).eval()
             self._model_source = self.model
         if self.feature_clip is not None:
             self.model_.feature_clip = self.feature_clip
@@ -171,6 +167,9 @@ class TabOmicsEstimator(BaseEstimator):
         scores = np.full(self.n_features_in_, np.nan)
         scores[self.preprocessor_.original_columns_] = attention[:-1].cpu().numpy()  # the label is last
         return scores
+
+    def _default_model(self) -> str:
+        raise ValueError("No model given.")
 
     def _model_targets(self) -> np.ndarray:
         raise NotImplementedError

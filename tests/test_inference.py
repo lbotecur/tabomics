@@ -119,7 +119,7 @@ def test_low_memory_modes_agree_and_bad_values_are_refused():
 def test_errors_for_missing_model_and_too_many_classes():
     X, _ = data()
     with pytest.raises(ValueError, match="No model"):
-        Classifier(device="cpu").fit(X, np.arange(80) % 2)
+        Regressor(device="cpu", bucket_borders=torch.linspace(-1, 1, 5)).fit(X, np.arange(80) % 2)
     with pytest.raises(ValueError, match="at most 10 classes"):
         Classifier(model=small_model(), device="cpu").fit(X, np.arange(80) % 11)
 

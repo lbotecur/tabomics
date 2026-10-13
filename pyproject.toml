@@ -22,8 +22,10 @@ classifiers = [
 # request that first needs them, with ranges rather than pins so that installing tabomics does not force
 # upgrades on other packages of the environment.
 dependencies = [
+    "huggingface_hub>=0.23",
     "numpy>=1.26",
     "pandas>=2.0",
+    "safetensors>=0.4",
     "scikit-learn>=1.4",
     "torch>=2.4",
 ]
