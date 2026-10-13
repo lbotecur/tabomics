@@ -1,0 +1,24 @@
+TabOmics
+Copyright (C) 2026 Luis Bote-Curiel
+
+TabOmics is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any
+later version (see LICENSE). It is distributed WITHOUT ANY WARRANTY.
+
+TabOmics includes code derived from the following works, whose licences are compatible with the GPL version 3
+and whose terms continue to apply to the parts derived from them (full texts in LICENSES/):
+
+- nanoTabPFN / TFM-Playground (https://github.com/automl/TFM-Playground)
+  Copyright 2025 Prior Labs GmbH, AutoML Freiburg, and Alexander Pfefferle
+  Apache License 2.0 (LICENSES/Apache-2.0-nanoTabPFN.txt)
+  The TabOmics architecture and its scikit-learn interface derive from nanoTabPFN; the files derived from it
+  say so in their header, and have been modified.
+
+- TabICL (https://github.com/soda-inria/tabicl)
+  Copyright (c) 2025, Soda team @ Inria
+  BSD 3-Clause License (LICENSES/BSD-3-Clause-TabICL.txt)
+  The synthetic-table generator in tabomics/prior/graph derives from TabICL's graph prior (TabICLv2); the
+  changes made to it are listed in tabomics/prior/graph/CHANGES.md.
+
+The feature widening in tabomics/prior follows Algorithms 1 and 2 of TabPFN-Wide (Kolberg et al.); the
+implementation is ours.

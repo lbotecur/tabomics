@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tabomics"
+dynamic = ["version"]
+description = "Tabular foundation model for wide omics data."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
+authors = [{ name = "Luis Bote-Curiel" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+# One install brings everything (inference, prior, training, benchmarks). Dependencies are added by the pull
+# request that first needs them, with ranges rather than pins so that installing tabomics does not force
+# upgrades on other packages of the environment.
+dependencies = [
+    "numpy>=1.26",
+    "torch>=2.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.15",
+]
+
+[project.urls]
+Homepage = "https://github.com/lbotecur/tabomics"
+Issues = "https://github.com/lbotecur/tabomics/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "tabomics.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import order
+    "UP",  # modern syntax
+    "B",   # likely bugs
+    "SIM", # simplifications
+    "D",   # docstrings
+]
+# D: Google-style docstrings, required on public modules, classes and functions (not on tests)
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
