@@ -1,7 +1,7 @@
-"""The graph prior: with raw=False it gives TabICL 2.2.0's tables (bit for bit on the same machine; against
-tests/fixtures/parity_prior.npz, written by tests/fixtures/make_prior_fixture.py on another machine, the same tables
-up to float rounding); with raw=True the same tables before TabICL's clamp and z-score, with their categorical
-columns as codes 0..K-1 and marked."""
+"""The graph prior: with raw=False it gives TabICL 2.2.0's tables (bit for bit against an installed tabicl; against
+tests/fixtures/parity_prior.npz, written by tests/fixtures/make_prior_fixture.py, up to what depends on the
+environment); with raw=True the same tables before TabICL's clamp and z-score, with their categorical columns as
+codes 0..K-1 and marked."""
 
 import importlib.util
 import os
@@ -51,31 +51,41 @@ def generate_in_subprocess(path: Path, tabicl: bool = False) -> dict:
     return dict(np.load(path))
 
 
-def assert_same(expected: dict, actual: dict, exact: bool = True) -> None:
-    """Same arrays, bit for bit; with exact=False (a fixture written on another machine), integers (labels, sizes)
-    must still be equal but generated floats only close. CPU kernels round differently between machines (AVX-512,
-    AVX2, plain): classification tables then differ by < 3e-3, while regression targets come out of chained random
-    functions that amplify rounding (differences up to ~1 measured), so their floats are not compared across
-    machines; the comparison with an installed tabicl, on the same machine, stays bit for bit."""
+def assert_same(expected: dict, actual: dict) -> None:
     assert sorted(expected) == sorted(actual)
     for key in expected:
-        assert expected[key].dtype == actual[key].dtype and expected[key].shape == actual[key].shape, key
-        if exact or not np.issubdtype(expected[key].dtype, np.floating):
-            np.testing.assert_array_equal(expected[key], actual[key], err_msg=key)
-        elif not key.startswith("regression/"):
-            np.testing.assert_allclose(expected[key], actual[key], rtol=1e-3, atol=1e-2, err_msg=key)
+        assert expected[key].dtype == actual[key].dtype, key
+        np.testing.assert_array_equal(expected[key], actual[key], err_msg=key)
 
 
 # --- identity with TabICL ---------------------------------------------------------------------------------------
 
 
-def test_scaled_tables_are_tabicls(tmp_path):
-    fixture = dict(np.load(FIXTURES / "parity_prior.npz"))  # written on another machine
-    assert_same(fixture, generate_in_subprocess(tmp_path / "ours.npz"), exact=False)
+def test_tables_match_the_tabicl_fixture(tmp_path):
+    """Against tables written by TabICL in another environment, only what does not depend on it is compared.
+
+    Generation depends on the environment: CPU kernels round differently (AVX-512, AVX2...), which chained random
+    functions amplify in regression targets (differences up to ~1), and the dataset filter fits an ExtraTrees whose
+    results change with the scikit-learn version, so other tables are kept. The plain classification case is stable:
+    its labels and sizes must be equal and its features equal up to rounding. The bit-for-bit check is
+    test_tables_are_installed_tabicls, in one environment.
+    """
+    fixture = dict(np.load(FIXTURES / "parity_prior.npz"))
+    ours = generate_in_subprocess(tmp_path / "ours.npz")
+    for key in [k for k in fixture if k.startswith("classification/")]:
+        assert fixture[key].dtype == ours[key].dtype and fixture[key].shape == ours[key].shape, key
+        if np.issubdtype(fixture[key].dtype, np.floating):
+            np.testing.assert_allclose(fixture[key], ours[key], rtol=1e-4, atol=1e-4, err_msg=key)
+        else:
+            np.testing.assert_array_equal(fixture[key], ours[key], err_msg=key)
 
 
-@pytest.mark.skipif(importlib.util.find_spec("tabicl") is None, reason="tabicl not installed")
-def test_scaled_tables_are_installed_tabicls(tmp_path):
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(m) is None for m in ("tabicl", "xgboost")),
+    reason="tabicl (with xgboost) not installed",
+)
+def test_tables_are_installed_tabicls(tmp_path):
+    """Bit for bit, all cases (classification, dataset filter on, regression): needs tabicl==2.2.0 (and xgboost)."""
     tabicl = generate_in_subprocess(tmp_path / "tabicl.npz", tabicl=True)
     assert_same(tabicl, generate_in_subprocess(tmp_path / "ours.npz"))
 
