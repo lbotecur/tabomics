@@ -7,3 +7,7 @@ its training and test rows, no gradient steps), and gives row embeddings and fea
 """
 
 __version__ = "0.1.0.dev0"
+
+from tabomics.inference import Classifier, Regressor, out_of_fold_embeddings  # noqa: E402
+
+__all__ = ["Classifier", "Regressor", "__version__", "out_of_fold_embeddings"]
