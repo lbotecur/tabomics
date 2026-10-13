@@ -24,9 +24,11 @@ classifiers = [
 dependencies = [
     "huggingface_hub>=0.23",
     "numpy>=1.26",
+    "openml>=0.14",
     "pandas>=2.0",
     "safetensors>=0.4",
     "scikit-learn>=1.4",
+    "scipy>=1.10",
     "torch>=2.4",
 ]
 
