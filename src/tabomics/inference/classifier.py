@@ -39,6 +39,7 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
                 f"This model supports at most {self.model_.config.num_outputs} classes, "
                 f"but the training data has {len(self.classes_)}."
             )
+        self.members_ = self._make_members(num_classes=len(self.classes_))
         return self
 
     def _default_model(self) -> str:
@@ -50,10 +51,18 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
         return self.y_train_
 
     def predict_proba(self, X_test) -> np.ndarray:
-        """Class probabilities of the test rows, shape (rows, classes), columns in the order of `classes_`."""
-        logits = self._run(X_test, self.y_train_).logits.float().squeeze(0)
-        # the model has num_outputs logits; keep those of the classes present in the training rows
-        return torch.softmax(logits[:, : len(self.classes_)], dim=1).cpu().numpy()
+        """Class probabilities of the test rows, shape (rows, classes), columns in the order of `classes_`.
+
+        With several estimators, the probabilities of the passes are averaged (each brought back to the original
+        class indices first).
+        """
+        num_classes = len(self.classes_)
+        total = 0.0
+        for member, out in self._passes(X_test):
+            # the model has num_outputs logits; keep those of the classes present in the training rows
+            proba = torch.softmax(out.logits.float().squeeze(0)[:, :num_classes], dim=1).cpu().numpy()
+            total = total + (proba if member.classes is None else proba[:, member.classes])
+        return total / len(self.members_)
 
     def predict(self, X_test) -> np.ndarray:
         """Most probable class of each test row, as an original label."""

@@ -52,6 +52,8 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         infer_categorical: bool = True,
         max_unique_for_categorical: int = 10,
         min_samples_for_categorical_inference: int = 30,
+        n_estimators: int = 1,
+        random_state: int = 0,
     ):
         super().__init__(
             model=model,
@@ -67,6 +69,8 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
             infer_categorical=infer_categorical,
             max_unique_for_categorical=max_unique_for_categorical,
             min_samples_for_categorical_inference=min_samples_for_categorical_inference,
+            n_estimators=n_estimators,
+            random_state=random_state,
         )
         self.bucket_borders = bucket_borders
 
@@ -82,6 +86,7 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         y_train = np.asarray(y_train)
         self.y_mean_, self.y_std_ = target_stats_numpy(y_train)
         self.y_train_ = standardize(y_train, self.y_mean_, self.y_std_)
+        self.members_ = self._make_members()
         return self
 
     def _default_model(self) -> str:
@@ -91,7 +96,6 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         return self.y_train_
 
     def predict(self, X_test) -> np.ndarray:
-        """Predicted target of each test row (the mean of its predicted distribution)."""
-        logits = self._run(X_test, self.y_train_).logits.float().squeeze(0)
-        mean = bar_distribution_mean(logits, self.borders_)
-        return unstandardize(mean, self.y_mean_, self.y_std_).cpu().numpy()
+        """Predicted target of each test row (the mean of its predicted distribution, averaged over the passes)."""
+        means = [bar_distribution_mean(out.logits.float().squeeze(0), self.borders_) for _, out in self._passes(X_test)]
+        return unstandardize(torch.stack(means).mean(dim=0), self.y_mean_, self.y_std_).cpu().numpy()
