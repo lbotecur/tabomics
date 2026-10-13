@@ -8,11 +8,12 @@ later version (see LICENSE). It is distributed WITHOUT ANY WARRANTY.
 TabOmics includes code derived from the following works, whose licences are compatible with the GPL version 3
 and whose terms continue to apply to the parts derived from them (full texts in LICENSES/):
 
-- nanoTabPFN / TFM-Playground (https://github.com/automl/TFM-Playground)
+- TFM-Playground (https://github.com/automl/TFM-Playground), which contains nanoTabPFN
+  (https://github.com/automl/nanoTabPFN)
   Copyright 2025 Prior Labs GmbH, AutoML Freiburg, and Alexander Pfefferle
-  Apache License 2.0 (LICENSES/Apache-2.0-nanoTabPFN.txt)
-  The TabOmics architecture and its scikit-learn interface derive from nanoTabPFN; the files derived from it
-  say so in their header, and have been modified.
+  Apache License 2.0 (LICENSES/Apache-2.0-TFM-Playground.txt)
+  The TabOmics architecture and its scikit-learn interface derive from nanoTabPFN as found in TFM-Playground;
+  the files derived from it say so in their header, and have been modified.
 
 - TabICL (https://github.com/soda-inria/tabicl)
   Copyright (c) 2025, Soda team @ Inria
