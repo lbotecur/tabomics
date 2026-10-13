@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Model weights and data never go in git (weights live on Hugging Face, data is downloaded)
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+data/
+workdir/
