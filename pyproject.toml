@@ -29,6 +29,7 @@ dependencies = [
     "safetensors>=0.4",
     "scikit-learn>=1.4",
     "scipy>=1.10",
+    "threadpoolctl>=3.1",
     "torch>=2.4",
 ]
 
@@ -51,6 +52,8 @@ where = ["src"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+# files copied unchanged from TabICL (src/tabomics/prior/graph/CHANGES.md): kept as they are, not linted
+extend-exclude = ["src/tabomics/prior/graph/_*.py"]
 
 [tool.ruff.lint]
 select = [
