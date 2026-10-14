@@ -2,12 +2,101 @@
 
 Tabular foundation model for wide omics data.
 
-TabOmics is a small transformer (7.3M parameters) pretrained on synthetic tables. Given a table, it classifies
-the test rows in context, in one forward pass over the training and test rows, with no training on your data. It
-is built for wide data (thousands of features, few samples, as in omics), and also returns row embeddings and
-feature importance.
+TabOmics classifies the rows of a table in context: given labelled training rows and unlabelled test rows, a
+transformer pretrained on synthetic tables reads them together and predicts the test rows in one forward pass, with
+no training on your data. It is built for wide data (thousands of features, few samples, as in omics), works on
+ordinary tables too, and also gives row embeddings and feature importance. The published model, v2, has 7.3M
+parameters.
 
-> Work in progress: the package is being assembled. Installation and usage will be documented here.
+## Installation
+
+```bash
+pip install git+https://github.com/lbotecur/tabomics.git
+```
+
+Python 3.10 or later and PyTorch 2.4 or later; everything else comes with it. The model weights are downloaded from
+Hugging Face the first time they are used. While the repositories are private, log in first (`hf auth login`).
+
+## Quick start
+
+```python
+from tabomics import Classifier
+
+clf = Classifier().fit(X_train, y_train)  # the published model, v2; fit only stores the training rows
+proba = clf.predict_proba(X_test)  # one forward pass over training and test rows
+labels = clf.predict(X_test)
+```
+
+`X` is a NumPy array or a pandas DataFrame; labels can be any values (up to 10 classes). Missing values are fine
+(leave them as NaN). It is a scikit-learn estimator, so `cross_val_score`, pipelines and the like work as usual.
+
+```python
+import torch
+
+clf = Classifier(
+    device="cuda",  # default: CUDA if available, else CPU
+    amp_dtype=torch.bfloat16,  # mixed precision on GPU: much faster on wide tables
+    categorical_features=[],  # indices of categorical columns; [] with infer_categorical=False for omics
+    infer_categorical=False,  # otherwise numeric columns with <= 10 distinct values are taken as categorical
+    n_estimators=1,  # passes averaged (each one shuffles columns and relabels classes); 1 by default
+)
+```
+
+**Row embeddings.** A vector per row, for clustering, plots or another model. A training row is seen together with
+its own label, so embed the training rows out of fold:
+
+```python
+from tabomics import out_of_fold_embeddings
+
+train_embeddings = out_of_fold_embeddings(clf, X_train, y_train)  # every row embedded as a test row
+test_embeddings = clf.embeddings(X_test)  # clf is then fitted on all training rows
+```
+
+**Feature importance.** The attention of the label to each column, averaged over test rows, heads and layers (as
+TabPFN-Wide); one score per column:
+
+```python
+importance = clf.fit(X_train, y_train).feature_importance(X_test)
+```
+
+**Large tables.** Tables of tens of thousands of columns fit on one GPU: inference runs in low-memory mode by
+default (`low_memory=True`) and splits each step in pieces (`num_mem_chunks=8`); neither changes the results.
+
+The [examples](examples) show all of this on a real gene-expression table, and the training of a model of your own.
+
+## Models
+
+| Name | Description |
+|---|---|
+| `v2` (default) | 12 layers, embedding 192, up to 10 classes; pretrained on synthetic tables of up to 2048 rows and up to 3350 columns; feature clip 10. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
+
+A name points to a fixed commit of the model's Hugging Face repository and to the SHA-256 of its weights, so it
+always loads the same model. `Classifier(model=...)` also takes a release directory, a `.safetensors` file, a
+training checkpoint (`.pth`) or a `TabOmicsModel`.
+
+## Benchmarks
+
+`scripts/evaluate.py` evaluates a model on fixed folds of the HDLSS, MLOmics, Shamir and OpenML-CC18 suites and
+writes one row per fold to a CSV. See [docs/benchmarks.md](docs/benchmarks.md) for the suites and their data.
+
+```bash
+python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to/data
+```
+
+## Training your own model
+
+Pretraining runs on synthetic tables only: a generator of random causal graphs (derived from TabICL's), with
+widening to thousands of columns (as TabPFN-Wide). A stage of training is a JSON recipe: architecture, synthetic
+tables, augmentations and optimization. `configs/v2/` has the four stages that produced v2 ([how to rerun
+them](configs/v2/README.md)); change anything from the command line:
+
+```bash
+python scripts/train.py --config configs/v2/1_base.json --run-dir runs/mine --device cuda:0 \
+    --set model.num_layers=6 --set training.lr=3e-4
+python scripts/export.py --checkpoint runs/mine/latest_checkpoint.pth --output release/mine --name mine
+```
+
+or from Python with `tabomics.training.train` (see [examples/04_train_and_continue.py](examples/04_train_and_continue.py)).
 
 ## Licence and credits
 
