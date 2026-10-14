@@ -21,7 +21,6 @@ from tabomics.model.io import WEIGHTS_FILE, load_checkpoint, load_pretrained, sa
 CARD = """---
 license: gpl-3.0
 library_name: tabomics
-pipeline_tag: tabular-classification
 tags:
   - tabular-classification
   - tabular-foundation-model
@@ -31,52 +30,18 @@ tags:
 
 # TabOmics {name}
 
-TabOmics is a tabular foundation model for wide omics data. Like TabPFN, it is pretrained on synthetic tables and
-uses in-context learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single
-forward pass, with no training or tuning on your data. It is designed for wide tables (thousands of features, few
-samples, as in omics), also works on ordinary tables, and provides row embeddings and feature importance.
+TabOmics is a tabular foundation model for wide omics data. It is pretrained on synthetic tables and uses in-context
+learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single forward pass,
+with no training or tuning on your data. It is designed for wide tables (thousands of features, few samples, as in
+omics), also works on ordinary tables, and provides row embeddings and feature importance.
 
 ```python
-from tabomics import Classifier  # pip install git+https://github.com/lbotecur/tabomics.git
-
+from tabomics import Classifier
 clf = Classifier(model="{name}").fit(X_train, y_train)
 proba = clf.predict_proba(X_test)
-importance = clf.feature_importance(X_test)
 ```
 
-Code, documentation, examples and licence: [github.com/lbotecur/tabomics](https://github.com/lbotecur/tabomics).
-
-## Model
-
-- Transformer over the cells of a table (attention between the columns of each row, then between rows; test rows
-  attend to training rows only), with the label as one more column. {layers} layers, embedding {embedding},
-  {heads} attention heads, {parameters:.1f}M parameters, up to {classes} classes.
-- Each column is standardized with the training rows; standardized values are clipped to +/-{feature_clip:g}.
-  Column permutation at inference: {permute}.
-- Files: `model.safetensors` (weights) and `config.json` (architecture and how the model is used).
-
-## Training
-
-Pretrained on synthetic tables only: no real data was used. The tables come from random causal graphs (a generator
-derived from TabICL's graph prior) and are widened with thousands of correlated columns (as TabPFN-Wide), with up to
-10% missing values. The stages, with every setting, are in the repository's `configs/` (one folder per model), and
-`scripts/train.py` reruns them.
-
-## Intended use and limitations
-
-- Classification of tables with few rows and many columns (omics cohorts: tens to a few thousand patients,
-  thousands of features), and of ordinary tables; research use.
-- Up to {classes} classes. Tables much longer or wider than the training tables are outside what the model saw
-  and may be predicted less well.
-- Feature importance is the model's attention, an indication of which columns it uses, not a causal or statistical
-  test.
-- Not a medical device: predictions on patient data must not be used for clinical decisions.
-
-## Licence and credits
-
-GPL-3.0-or-later. The architecture derives from nanoTabPFN (Pfefferle et al., 2025), the code from TFM-Playground,
-the synthetic-table generator from TabICL's prior (Qu et al., 2025, 2026), and the widening follows TabPFN-Wide
-(Kolberg et al., 2025); see the repository's README, NOTICE and LICENSES.
+Code, documentation and licence: https://github.com/lbotecur/tabomics (GNU General Public License v3.0 or later).
 """
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -117,18 +82,7 @@ with torch.no_grad():
 assert release.config == model.config
 
 c = model.config
-(Path(output) / "README.md").write_text(
-    CARD.format(
-        name=args.name,
-        parameters=sum(p.numel() for p in model.parameters()) / 1e6,
-        layers=c.num_layers,
-        embedding=c.embedding_size,
-        heads=c.num_attention_heads,
-        classes=c.num_outputs,
-        feature_clip=c.feature_clip,
-        permute="on" if c.permute_columns else "off",
-    )
-)
+(Path(output) / "README.md").write_text(CARD.format(name=args.name))
 print(f"release written to {output}: {sorted(p.name for p in Path(output).iterdir())}")
 print(f"config: {c}")
 print(f"sha256 of {WEIGHTS_FILE}: {sha256_of(Path(output) / WEIGHTS_FILE)}")
