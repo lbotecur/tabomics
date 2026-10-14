@@ -31,9 +31,10 @@ tags:
 
 # TabOmics {name}
 
-A tabular foundation model for wide omics data. Given labelled training rows and unlabelled test rows, it reads
-them together and classifies the test rows in one forward pass, with no training on the user's data. It also gives
-row embeddings and feature importance.
+TabOmics is a tabular foundation model for wide omics data. Like TabPFN, it is pretrained on synthetic tables and
+uses in-context learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single
+forward pass, with no training or tuning on your data. It is designed for wide tables (thousands of features, few
+samples, as in omics), also works on ordinary tables, and provides row embeddings and feature importance.
 
 ```python
 from tabomics import Classifier  # pip install git+https://github.com/lbotecur/tabomics.git
