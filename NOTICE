@@ -12,8 +12,9 @@ and whose terms continue to apply to the parts derived from them (full texts in 
   (https://github.com/automl/nanoTabPFN)
   Copyright 2025 Prior Labs GmbH, AutoML Freiburg, and Alexander Pfefferle
   Apache License 2.0 (LICENSES/Apache-2.0-TFM-Playground.txt)
-  The TabOmics architecture and its scikit-learn interface derive from nanoTabPFN as found in TFM-Playground;
-  the files derived from it say so in their header, and have been modified.
+  The TabOmics architecture and its scikit-learn interface derive from nanoTabPFN as found in TFM-Playground, and
+  the prior loader from TFM-Playground's TabICL loader; the files derived from it say so in their header, and have
+  been modified.
 
 - TabICL (https://github.com/soda-inria/tabicl)
   Copyright (c) 2025, Soda team @ Inria
