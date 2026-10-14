@@ -82,8 +82,8 @@ python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to
 
 ## Training your own model
 
-Pretraining runs on synthetic tables only: a generator of random causal graphs (derived from TabICL's), with
-widening to thousands of columns (as TabPFN-Wide). A stage of training is a JSON recipe: architecture, synthetic
+Pretraining runs on synthetic tables only: a generator of random causal graphs, with
+widening to thousands of columns. A stage of training is a JSON recipe: architecture, synthetic
 tables, augmentations and optimization. `configs/v2/` has the four stages that produced v2 ([how to rerun
 them](configs/v2/README.md)); change anything from the command line:
 
