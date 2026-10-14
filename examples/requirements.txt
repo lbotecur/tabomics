@@ -1,0 +1,2 @@
+# Only for the plots of the examples; TabOmics itself needs nothing else.
+matplotlib>=3.7
