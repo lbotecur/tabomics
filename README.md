@@ -24,7 +24,7 @@ TabPFN*. arXiv:2511.03634, 2025. [arxiv.org/abs/2511.03634](https://arxiv.org/ab
 [2] AutoML. *nanoTabPFN*. GitHub repository. [github.com/automl/nanoTabPFN](https://github.com/automl/nanoTabPFN)
 
 [3] A. Pfefferle, J. Hog, S. B. Öztürk, K. Kaya, Z. Türkmen and F. Hutter. *TFM-Playground: A Playground for Tabular
-Foundation Models*. GitHub repository, 2026. [github.com/automl/TFM-Playground](https://github.com/automl/TFM-Playground)
+Foundation Models*. GitHub repository. [github.com/automl/TFM-Playground](https://github.com/automl/TFM-Playground)
 
 [4] J. Qu, D. Holzmüller, G. Varoquaux and M. Le Morvan. *TabICL: A Tabular Foundation Model for In-Context Learning
 on Large Data*. ICML, 2025. [arxiv.org/abs/2502.05564](https://arxiv.org/abs/2502.05564)
