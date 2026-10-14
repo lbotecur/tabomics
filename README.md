@@ -102,7 +102,8 @@ or from Python with `tabomics.training.train` (see [examples/04_train_and_contin
 TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 Its architecture derives from nanoTabPFN [2, 3], and its code from the TFM-Playground repository [4] (Apache License
 2.0); its synthetic-table generator derives from the TabICL prior [5, 6, 7] (BSD 3-Clause License). Its feature
-widening, Feature importance method and benchmark protocol follow TabPFN-Wide [8, 9]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
+widening, feature importance method and benchmark protocol follow TabPFN-Wide [8, 9], and its out-of-fold row
+embeddings follow Ye et al. [10]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
 
 ### References
 
@@ -132,3 +133,6 @@ Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs
 
 [9] J. Kreuer (not-a-feature). *TabPFN-Wide*. GitHub repository.
 [github.com/not-a-feature/TabPFN-Wide](https://github.com/not-a-feature/TabPFN-Wide)
+
+[10] H.-J. Ye, S.-Y. Liu and W.-L. Chao. *A Closer Look at TabPFN v2: Understanding Its Strengths and Extending Its
+Capabilities*. arXiv:2502.17361, 2025. [arxiv.org/abs/2502.17361](https://arxiv.org/abs/2502.17361)
