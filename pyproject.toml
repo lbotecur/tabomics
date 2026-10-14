@@ -27,6 +27,7 @@ dependencies = [
     "openml>=0.14",
     "pandas>=2.0",
     "safetensors>=0.4",
+    "schedulefree>=1.2",
     "scikit-learn>=1.4",
     "scipy>=1.10",
     "threadpoolctl>=3.1",

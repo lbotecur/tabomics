@@ -6,7 +6,8 @@ Writes model.safetensors, config.json and a model card (README.md), reloads the 
 exactly the outputs of the checkpoint, and prints the SHA-256 of the weights (to register the model in
 tabomics/hub.py). For example:
 
-    python scripts/export.py --checkpoint path/to/nanotabpfn_v2.pth --output release/tabomics-v2 --name v2
+    python scripts/export.py --checkpoint runs/v2/4_low_lr/epoch_30.pth --output release/tabomics-v2 --name v2 \
+        --feature-clip 10
 """
 
 import argparse
@@ -55,11 +56,21 @@ parser.add_argument(
     default=None,
     help="store how the model is used: shuffle the columns once at inference (default: keep the checkpoint's)",
 )
+parser.add_argument(
+    "--feature-clip",
+    type=float,
+    default=None,
+    help="store the feature clip the model is meant to be used with (default: the checkpoint's own); the v2 was "
+    "trained with 100 and is used with 10",
+)
 args = parser.parse_args()
 
 model = load_checkpoint(args.checkpoint)
 if args.permute_columns is not None:
     model.config = type(model.config)(**{**model.config.to_dict(), "permute_columns": args.permute_columns})
+if args.feature_clip is not None:
+    model.config = type(model.config)(**{**model.config.to_dict(), "feature_clip": args.feature_clip})
+    model.feature_clip = args.feature_clip
 output = save_pretrained(model, args.output, task=args.task)
 
 # the release must give exactly the checkpoint's outputs
