@@ -1,7 +1,5 @@
 # TabOmics
 
-Tabular foundation model for wide omics data.
-
 TabOmics is a tabular foundation model for wide omics data. Like TabPFN [1], it is pretrained on synthetic tables and
 uses in-context learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single
 forward pass, with no training or tuning on your data. It is designed for wide tables (thousands of features, few
