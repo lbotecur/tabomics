@@ -80,6 +80,9 @@ writes one row per fold to a CSV. See [docs/benchmarks.md](docs/benchmarks.md) f
 python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to/data
 ```
 
+Other models (random forest, XGBoost, TabPFN, TabICL...) are evaluated on the same folds with
+[baselines/evaluate.py](baselines), which installs nothing with TabOmics.
+
 ## Training your own model
 
 Pretraining runs on synthetic tables only: a generator of random causal graphs (derived from TabICL's), with

@@ -1,0 +1,2 @@
+# Random forest and logistic regression come with scikit-learn (a TabOmics dependency).
+xgboost>=2.0
