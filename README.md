@@ -13,8 +13,8 @@ feature importance.
 
 TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 Its architecture derives from nanoTabPFN [1, 2], and its code from the TFM-Playground repository [3] (Apache License
-2.0); its synthetic-table generator derives from the TabICL prior [4, 5, 6] (BSD 3-Clause License). See
-[NOTICE](NOTICE) and [LICENSES](LICENSES).
+2.0); its synthetic-table generator derives from the TabICL prior [4, 5, 6] (BSD 3-Clause License). Its feature
+widening and benchmark protocol follow TabPFN-Wide [7, 8]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
 
 ### References
 
@@ -34,3 +34,9 @@ foundation model*. ICML, 2026. [arxiv.org/abs/2602.11139](https://arxiv.org/abs/
 
 [6] The Soda research team, Inria. *TabICL*. GitHub repository.
 [github.com/soda-inria/tabicl](https://github.com/soda-inria/tabicl)
+
+[7] C. Kolberg, J. Kreuer, J. Huurdeman, S. Ouaari, K. Eggensperger and N. Pfeifer. *TabPFN-Wide: Continued
+Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs/2510.06162](https://arxiv.org/abs/2510.06162)
+
+[8] J. Kreuer (not-a-feature). *TabPFN-Wide*. GitHub repository.
+[github.com/not-a-feature/TabPFN-Wide](https://github.com/not-a-feature/TabPFN-Wide)
