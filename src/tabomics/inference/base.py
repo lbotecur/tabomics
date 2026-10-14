@@ -76,8 +76,12 @@ class TabOmicsEstimator(BaseEstimator):
             float32.
         low_memory: Low-memory inference (True, the default: as accurate, and correct on very large tables),
             the normal path (False), or "auto" (low-memory for large tables only, and as a retry after running out
-            of GPU memory).
-        num_mem_chunks: Pieces the memory-heavy steps are split into.
+            of GPU memory). It normalizes inside the memory chunks and keeps the activations in the input dtype
+            (bf16 with amp_dtype), so no full-table float32 copy is made.
+        num_mem_chunks: Pieces each step of a block (attention between columns, between rows, MLP) is applied in,
+            writing each result in place: the peak memory of the intermediate tensors falls about this many times,
+            at some cost in speed. Results are the same. Inference only (with gradients the step runs in one
+            piece). With low_memory, the two together let tables of tens of thousands of columns fit.
         feature_clip: Bound of the standardized feature values; None keeps the model's own.
         permute_columns: Shuffle the columns once before the model; None keeps the model's own setting.
         column_seed: Seed of that permutation.

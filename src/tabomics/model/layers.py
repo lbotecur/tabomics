@@ -139,7 +139,7 @@ def apply_in_chunks(fn: Callable[[torch.Tensor], torch.Tensor], x: torch.Tensor,
         warnings.warn(
             "Memory chunking is disabled while gradients are enabled (it would give wrong gradients); "
             "use torch.no_grad() at inference to enable it.",
-            stacklevel=2,
+            stacklevel=1,  # one place, so that Python shows it once, not once per block
         )
         return fn(x)
     chunk_size = max(1, math.ceil(x.shape[0] / num_chunks))
@@ -191,10 +191,11 @@ class TransformerBlock(nn.Module):
 
     def __init__(self, embedding_size: int, num_attention_heads: int, mlp_hidden_size: int):
         super().__init__()
-        self.self_attention_between_features = nn.MultiheadAttention(
+        # created in this order (rows, then columns) so that a seed gives the initial weights of nanoTabPFN
+        self.self_attention_between_datapoints = nn.MultiheadAttention(
             embedding_size, num_attention_heads, batch_first=True
         )
-        self.self_attention_between_datapoints = nn.MultiheadAttention(
+        self.self_attention_between_features = nn.MultiheadAttention(
             embedding_size, num_attention_heads, batch_first=True
         )
         self.linear1 = nn.Linear(embedding_size, mlp_hidden_size)
@@ -241,7 +242,11 @@ class TransformerBlock(nn.Module):
             # need_weights=False lets PyTorch use scaled_dot_product_attention, which never builds the (C, C)
             # weights; the label row of the attention is computed apart when it is asked for. Key and value are
             # views (distinct tensor objects): see _no_fast_path.
-            out = self.self_attention_between_features(inp, *_no_fast_path(inp, inp), need_weights=False)[0]
+            # With gradients (training) the fast path is never taken: query, key and value stay one object, so
+            # that their projection is one matrix product, as when the published models were trained (the same
+            # gradients, bit for bit).
+            key, value = (inp, inp) if torch.is_grad_enabled() else _no_fast_path(inp, inp)
+            out = self.self_attention_between_features(inp, key, value, need_weights=False)[0]
             if capture_label_attention:
                 weights = label_attention_weights(self.self_attention_between_features, inp)
                 attention_sum[0] += weights.float().sum(dim=0)
@@ -258,12 +263,13 @@ class TransformerBlock(nn.Module):
         x = x.transpose(1, 2).reshape(batch_size * num_columns, num_rows, embedding_size)
 
         def between_rows(inp: torch.Tensor) -> torch.Tensor:
-            context = inp[:, :train_size]
+            # A new slice for each of query, key and value: distinct objects (no fast path, see _no_fast_path),
+            # taken as when the published models were trained, so that gradients are the same bit for bit.
             train_out = self.self_attention_between_datapoints(
-                context, *_no_fast_path(context, context), need_weights=False
+                inp[:, :train_size], inp[:, :train_size], inp[:, :train_size], need_weights=False
             )[0]
             test_out = self.self_attention_between_datapoints(
-                inp[:, train_size:], *_no_fast_path(context, context), need_weights=False
+                inp[:, train_size:], inp[:, :train_size], inp[:, :train_size], need_weights=False
             )[0]
             return residual_norm(self.norm2, torch.cat([train_out, test_out], dim=1) + inp, inp)
 
