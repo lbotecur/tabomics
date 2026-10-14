@@ -49,8 +49,7 @@ train_embeddings = out_of_fold_embeddings(clf, X_train, y_train)  # every row em
 test_embeddings = clf.embeddings(X_test)  # clf is then fitted on all training rows
 ```
 
-**Feature importance.** The attention of the label to each column, averaged over test rows, heads and layers (as
-TabPFN-Wide); one score per column:
+**Feature importance.** The attention of the label to each column, averaged over test rows, heads and layers; one score per column:
 
 ```python
 importance = clf.fit(X_train, y_train).feature_importance(X_test)
@@ -103,7 +102,7 @@ or from Python with `tabomics.training.train` (see [examples/04_train_and_contin
 TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 Its architecture derives from nanoTabPFN [2, 3], and its code from the TFM-Playground repository [4] (Apache License
 2.0); its synthetic-table generator derives from the TabICL prior [5, 6, 7] (BSD 3-Clause License). Its feature
-widening and benchmark protocol follow TabPFN-Wide [8, 9]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
+widening, Feature importance method and benchmark protocol follow TabPFN-Wide [8, 9]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
 
 ### References
 
