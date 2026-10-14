@@ -1,0 +1,56 @@
+{
+  "description": "v2 stage 2: longer tables, up to 2048 rows (run v2_p1_big-e100-rows2048, epoch 100).",
+  "model": {
+    "embedding_size": 192,
+    "num_attention_heads": 6,
+    "mlp_hidden_size": 768,
+    "num_layers": 12,
+    "num_outputs": 10,
+    "feature_clip": 100.0,
+    "permute_columns": false
+  },
+  "prior": {
+    "min_rows": 40,
+    "max_rows": 2048,
+    "min_features": 2,
+    "max_features": 100,
+    "max_classes": 10,
+    "raw": false,
+    "log_seq_len": true,
+    "min_train_size": 0.3,
+    "max_train_size": 0.9,
+    "batch_size_per_gp": null,
+    "fct_types": null,
+    "filter_graphs": true,
+    "filter_datasets": false
+  },
+  "augmentation": {
+    "add_features_min": 200,
+    "add_features_max": 0,
+    "sparsity_max": 0.05,
+    "noise_max": 1.0,
+    "include_original_prob": 0.5,
+    "max_cats": 20,
+    "prob_no_widening": 0.3,
+    "widen_max_rows": 0,
+    "sparse_columns_prob": 0.0,
+    "sparse_columns_max_fraction": 1.0,
+    "missing_rate_max": 0.1
+  },
+  "training": {
+    "epochs": 100,
+    "steps_per_epoch": 1000,
+    "batch_size": 8,
+    "accumulate": 1,
+    "lr": 0.0001,
+    "warmup_steps": 500,
+    "grad_clip": 1.0,
+    "amp_dtype": "bfloat16",
+    "gradient_checkpointing": true,
+    "seed": 1100,
+    "workers": 4,
+    "snapshot_every": 5,
+    "log_every": 50
+  },
+  "init_from": "runs/v2/1_base/epoch_100.pth"
+}
