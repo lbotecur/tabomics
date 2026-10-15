@@ -23,7 +23,8 @@ def tiny_model(tmp_path_factory):
 
 
 @pytest.mark.parametrize(
-    "example", ["01_classify.py", "02_embeddings.py", "03_interpretability.py", "04_train_and_continue.py"]
+    "example",
+    ["01_classify.py", "02_embeddings.py", "03_interpretability.py", "04_train_and_continue.py", "05_finetune.py"],
 )
 def test_example_runs(example, tiny_model, tmp_path):
     command = [sys.executable, str(EXAMPLES / example), "--quick", "--device", "cpu", "--model", str(tiny_model)]

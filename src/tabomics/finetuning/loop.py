@@ -18,7 +18,9 @@ Rubachev et al. (2025), who found full fine-tuning with early stopping the best 
 
 from __future__ import annotations
 
+import contextlib
 import copy
+import io
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -43,7 +45,8 @@ class FinetuneResult:
 
     Attributes:
         model: The fine-tuned model (weights of the best epoch), in evaluation mode.
-        history: One row per epoch (0 = the pretrained model): train_loss, val_loss, val_accuracy.
+        history: One row per epoch (0 = the pretrained model): train_loss (cross-entropy over all the model's
+            outputs, as in pretraining), val_loss and val_accuracy (over the table's classes, as at inference).
         best_epoch: Epoch whose weights the model holds (0 = no epoch improved: the pretrained weights).
     """
 
@@ -179,6 +182,7 @@ def finetune(
     gradient_checkpointing: bool = True,
     num_mem_chunks: int = 8,
     seed: int = 0,
+    verbose: bool = True,
     output: str | Path | None = None,
     **preprocessing,
 ) -> FinetuneResult:
@@ -217,6 +221,7 @@ def finetune(
         gradient_checkpointing: Recompute each block in the backward pass (less memory, more compute).
         num_mem_chunks: Memory chunks of the validation passes (see Classifier).
         seed: Seed of the validation split, the episodes and the prior.
+        verbose: Print the losses of every epoch.
         output: Directory for the fine-tuned checkpoint (finetuned.pth, loadable by Classifier), history.csv and
             steps.csv; None = nothing is written.
         **preprocessing: Settings of FeaturePreprocessor (categorical_features, infer_categorical, ...).
@@ -267,12 +272,13 @@ def finetune(
     val_loss, val_accuracy = evaluate()
     history = [{"epoch": 0, "train_loss": float("nan"), "val_loss": val_loss, "val_accuracy": val_accuracy}]
     best = {"epoch": 0, "loss": val_loss, "state": _copy_state(model)}
-    print(f"Pretrained | Val Loss {val_loss:.4f} | Val Acc {val_accuracy:.4f}", flush=True)
+    log = print if verbose else (lambda *args, **kwargs: None)
+    log(f"Pretrained | Val Loss {val_loss:.4f} | Val Acc {val_accuracy:.4f}", flush=True)
 
     def on_epoch_end(epoch: int, train_loss: float) -> bool:
         val_loss, val_accuracy = evaluate()
         history.append({"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss, "val_accuracy": val_accuracy})
-        print(f"Epoch {epoch:5d} | Val Loss {val_loss:.4f} | Val Acc {val_accuracy:.4f}", flush=True)
+        log(f"Epoch {epoch:5d} | Val Loss {val_loss:.4f} | Val Acc {val_accuracy:.4f}", flush=True)
         if not has_validation:
             best.update(epoch=epoch, state=None)  # the last weights are kept
             return False
@@ -281,7 +287,8 @@ def finetune(
         return epoch - best["epoch"] >= patience
 
     optimizer_steps = epochs * steps_per_epoch // accumulate
-    with tempfile.TemporaryDirectory() as scratch:
+    quiet = contextlib.nullcontext() if verbose else contextlib.redirect_stdout(io.StringIO())
+    with tempfile.TemporaryDirectory() as scratch, quiet:
         run_dir = Path(output) if output is not None else Path(scratch)
         train(
             model, loader, run_dir, epochs, lr=lr, accumulate=accumulate,
@@ -303,7 +310,7 @@ def finetune(
             Path(output) / "finetuned.pth",
         )
         history.to_csv(Path(output) / "history.csv", index=False)
-    print(f"Kept the weights of epoch {best['epoch']}" + (" (the pretrained ones)" if best["epoch"] == 0 else ""))
+    log(f"Kept the weights of epoch {best['epoch']}" + (" (the pretrained ones)" if best["epoch"] == 0 else ""))
     return FinetuneResult(model=model, history=history, best_epoch=best["epoch"])
 
 

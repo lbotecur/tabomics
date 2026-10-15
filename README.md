@@ -82,6 +82,30 @@ python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to
 Other models (random forest, XGBoost, TabPFN, TabICL...) are evaluated on the same folds with
 [baselines/evaluate.py](baselines), which installs nothing with TabOmics.
 
+## Fine-tuning
+
+The model works on a new table as it is; it can also be fine-tuned on real tables. `FineTunedClassifier`
+fine-tunes a copy of the model on the training rows before predicting, holding out 10% of them to stop early, and
+keeps the pretrained weights if fine-tuning does not improve on them. In a cross-validation, each fold is
+fine-tuned on its own training rows only.
+
+```python
+from tabomics.finetuning import FineTunedClassifier
+
+clf = FineTunedClassifier(device="cuda", amp_dtype=torch.bfloat16).fit(X_train, y_train)
+proba = clf.predict_proba(X_test)
+```
+
+A model for a domain is fine-tuned once on many tables, then used as any other model:
+
+```bash
+python scripts/finetune.py --model v2 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics
+python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir --data-root /path/to/data
+```
+
+`scripts/evaluate.py --finetune` fine-tunes inside each fold of a benchmark. See
+[examples/05_finetune.py](examples/05_finetune.py).
+
 ## Training your own model
 
 Pretraining runs on synthetic tables only: a generator of random causal graphs, with
@@ -103,7 +127,8 @@ TabOmics is free software, released under the GNU General Public License v3.0 or
 Its architecture derives from nanoTabPFN [2, 3], and its code from the TFM-Playground repository [4] (Apache License
 2.0); its synthetic-table generator derives from the TabICL prior [5, 6, 7] (BSD 3-Clause License). Its feature
 widening, feature importance method and benchmark protocol follow TabPFN-Wide [8, 9], and its out-of-fold row
-embeddings follow Ye et al. [10]. See [NOTICE](NOTICE) and [LICENSES](LICENSES).
+embeddings follow Ye et al. [10]. Its fine-tuning follows TabICL [7] and Rubachev et al. [11]. See [NOTICE](NOTICE)
+and [LICENSES](LICENSES).
 
 ### References
 
@@ -136,3 +161,6 @@ Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs
 
 [10] H.-J. Ye, S.-Y. Liu and W.-L. Chao. *A Closer Look at TabPFN v2: Understanding Its Strengths and Extending Its
 Capabilities*. arXiv:2502.17361, 2025. [arxiv.org/abs/2502.17361](https://arxiv.org/abs/2502.17361)
+
+[11] I. Rubachev, A. Kotelnikov and N. Kartashev. *On Finetuning Tabular Foundation Models*. arXiv:2506.08982, 2025.
+[arxiv.org/abs/2506.08982](https://arxiv.org/abs/2506.08982)
