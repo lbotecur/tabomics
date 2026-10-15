@@ -45,7 +45,8 @@ def test_classifier_matches_the_reference(data, classifier_model, setting):
     np.testing.assert_allclose(clf.predict_proba(X[n:]), data[f"{setting}_proba"], rtol=0, atol=1e-6)
     assert (clf.predict(X[n:]) == data[f"{setting}_predict"]).all()
     np.testing.assert_allclose(clf.embeddings(X[n:]), data[f"{setting}_embeddings"], rtol=0, atol=1e-5)
-    np.testing.assert_allclose(clf.feature_importance(X[n:]), data[f"{setting}_importance"], rtol=0, atol=1e-6)
+    importance = clf.feature_importance(X[n:], rows="all")  # the reference averages over all rows
+    np.testing.assert_allclose(importance, data[f"{setting}_importance"], rtol=0, atol=1e-6)
 
 
 def test_regressor_matches_the_reference(data):

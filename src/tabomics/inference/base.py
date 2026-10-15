@@ -175,7 +175,7 @@ class TabOmicsEstimator(BaseEstimator):
         Args:
             X_test: Test rows, in the original columns.
             relabel_classes: Apply the members' class relabelling (off for embeddings, see embeddings()).
-            **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
+            **extras: return_embeddings / return_label_attention / label_attention_rows, passed to TabOmicsModel.run.
 
         Yields:
             Each member and its output.
@@ -193,7 +193,7 @@ class TabOmicsEstimator(BaseEstimator):
         Args:
             x: Training rows followed by test rows, preprocessed, shape (rows, columns).
             y_train: Training targets as the model reads them (class indices, or standardized values).
-            **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
+            **extras: return_embeddings / return_label_attention / label_attention_rows, passed to TabOmicsModel.run.
         """
         x = torch.from_numpy(x).unsqueeze(0).to(torch.float).to(self.device_)
         y = torch.from_numpy(np.asarray(y_train)).unsqueeze(0).to(torch.float).to(self.device_)
@@ -242,18 +242,28 @@ class TabOmicsEstimator(BaseEstimator):
         ]
         return np.mean(pieces, axis=0) if reduce == "mean" else np.concatenate(pieces, axis=1)
 
-    def feature_importance(self, X_test) -> np.ndarray:
-        """Attention of the label column to each feature, averaged over test rows, heads and layers.
+    def feature_importance(self, X_test, rows: str = "test") -> np.ndarray:
+        """Attention of the label column to each feature, averaged over the test rows, heads and layers.
 
-        This is the importance measure of TabPFN-Wide. With several estimators each column has been at several
-        positions, and the scores are averaged over the passes, which removes the effect of the position. Constant
-        columns, never seen by the model, get NaN.
+        The importance measure of TabPFN-Wide, with one difference: TabPFN-Wide averages over all rows, training
+        and test, whose label columns mean different things (a known label in training rows, the prediction being
+        built in test rows), so its score moves with the train/test split. Here the default averages over the test
+        rows only: how much the predictions for X_test draw on each column. `rows` chooses other rows; the
+        reasons are set out at LABEL_ATTENTION_ROWS in tabomics.model.layers.
+
+        With several estimators each column has been at several positions, and the scores are averaged over the
+        passes, which removes the effect of the position. Constant columns, never seen by the model, get NaN.
+
+        Args:
+            X_test: Test rows (at least one, also with rows="train", which still runs them through the model).
+            rows: "test" (default), "train" (the training rows given to fit), or "all" (both, as TabPFN-Wide and
+                tabomics before this option).
 
         Returns:
             One score per original column, shape (n_features_in_,).
         """
         total = np.zeros(self.n_features_in_)
-        for member, out in self._passes(X_test, return_label_attention=True):
+        for member, out in self._passes(X_test, return_label_attention=True, label_attention_rows=rows):
             attention = out.label_attention[:-1].cpu().numpy()  # the label column is last
             total[self.preprocessor_.original_columns_[member.columns]] += attention
         scores = np.full(self.n_features_in_, np.nan)

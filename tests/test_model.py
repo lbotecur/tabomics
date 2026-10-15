@@ -85,6 +85,61 @@ def test_shapes_and_extras():
         assert torch.equal(model(x, y, n), out.logits)
 
 
+def label_attention(model, x, y, n, rows, num_mem_chunks=1):
+    with torch.no_grad():
+        return model.run(
+            x, y, n, num_mem_chunks=num_mem_chunks, return_label_attention=True, label_attention_rows=rows
+        ).label_attention
+
+
+def test_label_attention_of_all_rows_is_the_row_weighted_mix_of_train_and_test():
+    model = small_model()
+    x, y, n = table()  # 20 training rows, 10 test rows
+    train, test, every = (label_attention(model, x, y, n, rows) for rows in ("train", "test", "all"))
+    assert torch.allclose(every, (20 * train + 10 * test) / 30, atol=1e-6)
+    assert not torch.allclose(train, test, atol=1e-3)
+    assert torch.allclose(test.sum(), torch.tensor(1.0), atol=1e-5)
+
+
+def test_label_attention_rows_do_not_depend_on_the_memory_chunks():
+    model = small_model()
+    x, y, n = table()
+    for rows in ("train", "test", "all"):
+        expected = label_attention(model, x, y, n, rows)
+        for chunks in (2, 7, 60):  # chunk edges inside a table, across the two tables, one row per chunk
+            assert torch.allclose(label_attention(model, x, y, n, rows, chunks), expected, atol=1e-6)
+
+
+def test_test_row_label_attention_does_not_depend_on_the_split():
+    # Test rows see only training rows, so repeating them leaves their mean unchanged; the mean over all rows
+    # moves, as its share of test rows changes
+    model = small_model()
+    x, y, n = table()
+    doubled = torch.cat([x, x[:, n:]], dim=1)
+    assert torch.allclose(
+        label_attention(model, doubled, y, n, "test"), label_attention(model, x, y, n, "test"), atol=1e-6
+    )
+    assert not torch.allclose(
+        label_attention(model, doubled, y, n, "all"), label_attention(model, x, y, n, "all"), atol=1e-4
+    )
+    # and the training rows never see the test rows
+    changed = x.clone()
+    changed[:, n:] += 3.0
+    assert torch.allclose(
+        label_attention(model, changed, y, n, "train"), label_attention(model, x, y, n, "train"), atol=1e-6
+    )
+
+
+def test_label_attention_rows_are_checked():
+    model = small_model()
+    x, y, n = table()
+    with pytest.raises(ValueError, match="must be one of"):
+        label_attention(model, x, y, n, "validation")
+    with pytest.raises(ValueError, match="no test rows"):
+        label_attention(model, x[:, :n], y, n, "test")
+    assert label_attention(model, x[:, :n], y, n, "train").shape == (8,)
+
+
 def test_test_rows_do_not_influence_each_other():
     model = small_model()
     x, y, n = table()
