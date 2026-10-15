@@ -14,6 +14,7 @@ with its averaged weights, which are the ones meant for inference.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import schedulefree
@@ -67,6 +68,7 @@ def train(
     snapshot_every: int = 0,
     log_every: int = 0,
     resume: dict | None = None,
+    on_epoch_end: Callable[[int, float], bool] | None = None,
 ) -> float:
     """Pretrains a model on the batches of a prior loader.
 
@@ -88,6 +90,8 @@ def train(
         log_every: Print, and append to steps.csv, the mean loss every this many batches; 0 = only per epoch.
         resume: A training checkpoint (load_training_state) to continue from: optimizer state and epoch; the model
             must already hold its weights.
+        on_epoch_end: Called after each epoch with (epoch, mean loss), the model holding the weights just saved
+            (the optimizer's averages, in evaluation mode); returning True stops training (e.g. early stopping).
 
     Returns:
         The mean loss of the last epoch.
@@ -169,4 +173,6 @@ def train(
             if snapshot_every and epoch % snapshot_every == 0:
                 save_checkpoint(run_dir / f"epoch_{epoch}.pth", model, optimizer, epoch)
             print(f"Epoch {epoch:5d} | Time {time.time() - start:5.2f}s | Mean Loss {mean_loss:5.2f}", flush=True)
+            if on_epoch_end is not None and on_epoch_end(epoch, mean_loss):
+                break
     return mean_loss
