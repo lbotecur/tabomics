@@ -71,6 +71,33 @@ def test_accumulation_must_divide_the_epoch(tmp_path):
         train(TabOmicsModel(TabOmicsConfig(**SMALL)), Batches(batches()[:3]), tmp_path, 1, accumulate=2)
 
 
+def test_a_group_cut_short_by_a_skipped_batch_still_steps(tmp_path, capsys):
+    data = batches()
+    data[1] = {**data[1], "y": data[1]["y"].clone()}
+    data[1]["y"][0, 5] = float("nan")  # a missing training label: the batch is skipped
+    train(TabOmicsModel(TabOmicsConfig(**SMALL)), Batches(data), tmp_path, 1, accumulate=2, lr=1e-3)
+    # batches 0 and 2 make one step, batch 3 alone the other (its gradients would otherwise be dropped)
+    optimizer = torch.load(tmp_path / "latest_checkpoint.pth", weights_only=False)["optimizer"]
+    assert optimizer["param_groups"][0]["k"] == 2
+    assert "Skipped 1 (missing labels)" in capsys.readouterr().out
+
+
+def test_a_short_group_steps_as_a_mean_over_its_batches(tmp_path):
+    # the short group [b] of accumulate=2 must give the step of a full group [b, b]
+    b = batches()[0]
+    skipped = {**b, "y": b["y"].clone()}
+    skipped["y"][0, 0] = float("nan")
+
+    def weights(data, directory):
+        torch.manual_seed(0)
+        model = TabOmicsModel(TabOmicsConfig(**SMALL))
+        train(model, Batches(data), tmp_path / directory, 1, accumulate=2, lr=1e-3)
+        return model.state_dict()
+
+    short, full = weights([b, skipped], "short"), weights([b, b], "full")
+    assert all(torch.allclose(short[k], full[k], atol=1e-6) for k in full)
+
+
 def test_recipes_load_override_and_reject_typos(tmp_path):
     path = tmp_path / "recipe.json"
     path.write_text(json.dumps(TINY))
