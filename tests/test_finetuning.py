@@ -1,6 +1,10 @@
 """Fine-tuning: episodes never contain validation rows, keep every class in the context and permute the classes;
 early stopping keeps the best weights (the pretrained ones if no epoch improves); end to end."""
 
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,6 +14,7 @@ import tabomics.finetuning.loop as loop
 from tabomics import Classifier
 from tabomics.finetuning import (
     EpisodeLoader,
+    FineTunedClassifier,
     MixedLoader,
     finetune,
     prepare_table,
@@ -19,6 +24,8 @@ from tabomics.finetuning import (
 from tabomics.model import TabOmicsConfig, TabOmicsModel
 from tabomics.model.io import load_model
 from tabomics.training import PriorSettings
+
+REPO = Path(__file__).resolve().parents[1]
 
 TINY = {"embedding_size": 16, "num_attention_heads": 2, "mlp_hidden_size": 32, "num_layers": 2}
 FAST = {"epochs": 2, "steps_per_epoch": 4, "batch_size": 2, "accumulate": 2, "device": "cpu", "lr": 1e-3}
@@ -201,3 +208,42 @@ def test_finetune_with_synthetic_tables(monkeypatch):
     assert len(result.history) == FAST["epochs"] + 1
     with pytest.raises(ValueError, match="max_classes"):
         finetune(tiny_model(), [random_table()], prior_fraction=0.5, prior=PriorSettings(max_classes=20), **FAST)
+
+
+def test_finetuned_classifier_is_finetune_then_classifier():
+    X, y = random_table(rows=80)
+    settings = {k: v for k, v in FAST.items() if k != "device"}
+    clf = FineTunedClassifier(model=tiny_model(), device="cpu", random_state=3, **settings).fit(X[:60], y[:60])
+    result = finetune(tiny_model(), [(X[:60], y[:60])], seed=3, verbose=False, **FAST)
+    reference = Classifier(model=result.model, device="cpu").fit(X[:60], y[:60])
+    np.testing.assert_allclose(clf.predict_proba(X[60:]), reference.predict_proba(X[60:]), rtol=1e-5, atol=1e-6)
+    assert clf.best_epoch_ == result.best_epoch and len(clf.finetune_history_) == len(result.history)
+
+
+def test_finetuned_classifier_is_a_scikit_learn_estimator():
+    from sklearn.base import clone
+    from sklearn.model_selection import cross_val_predict
+
+    X, y = random_table(rows=60)
+    clf = FineTunedClassifier(model=tiny_model(), device="cpu", epochs=1, steps_per_epoch=2, accumulate=2, lr=1e-3)
+    assert clone(clf).get_params()["lr"] == 1e-3
+    proba = cross_val_predict(clf, X, y, cv=3, method="predict_proba")
+    assert proba.shape == (60, 3) and np.allclose(proba.sum(axis=1), 1, atol=1e-5)
+
+
+def test_finetune_script_end_to_end(tmp_path):
+    for i in range(2):
+        X, y = random_table(seed=i)
+        table = pd.DataFrame(X, columns=[f"g{j}" for j in range(X.shape[1])]).assign(label=y)
+        table.to_csv(tmp_path / f"t{i}.csv", index=False)
+    release = tmp_path / "tiny"
+    from tabomics.model.io import save_pretrained
+
+    save_pretrained(tiny_model(), release)
+    command = [sys.executable, str(REPO / "scripts" / "finetune.py"), "--model", str(release), "--data",
+               str(tmp_path / "t0.csv"), str(tmp_path / "t1.csv"), "--output", str(tmp_path / "out"), "--device",
+               "cpu", "--epochs", "2", "--steps-per-epoch", "4", "--accumulate", "2", "--lr", "1e-3"]  # fmt: skip
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr[-3000:]
+    assert {"finetuned.pth", "history.csv", "steps.csv"} <= {p.name for p in (tmp_path / "out").iterdir()}
+    assert len(pd.read_csv(tmp_path / "out" / "history.csv")) >= 2

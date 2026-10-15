@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Luis Bote-Curiel
 """Fine-tuning a pretrained model on real tables: episodes, the fine-tuning loop and early stopping."""
 
+from tabomics.finetuning.classifier import FineTunedClassifier
 from tabomics.finetuning.episodes import EpisodeLoader, FinetuneTable, prepare_table, split_context_query
 from tabomics.finetuning.loop import (
     FinetuneResult,
@@ -13,6 +14,7 @@ from tabomics.finetuning.loop import (
 
 __all__ = [
     "EpisodeLoader",
+    "FineTunedClassifier",
     "FinetuneResult",
     "FinetuneTable",
     "MixedLoader",
