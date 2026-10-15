@@ -13,7 +13,14 @@ import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from tabomics.model.layers import DEFAULT_FEATURE_CLIP, Decoder, FeatureEncoder, TargetEncoder, TransformerBlock
+from tabomics.model.layers import (
+    DEFAULT_FEATURE_CLIP,
+    LABEL_ATTENTION_ROWS,
+    Decoder,
+    FeatureEncoder,
+    TargetEncoder,
+    TransformerBlock,
+)
 
 # Seed of the fixed random vector given to each column position (see TabOmicsModel.add_column_vectors).
 COLUMN_VECTOR_SEED = 42
@@ -60,8 +67,8 @@ class TabOmicsOutput:
     Attributes:
         logits: Class logits of the test rows, shape (B, R_test, num_outputs).
         embeddings: Label-column embedding of every row (training and test), shape (B, R, E), if asked for.
-        label_attention: Attention of the label column to each column (the label itself last), averaged over
-            rows, heads and blocks, shape (C + 1,), if asked for.
+        label_attention: Attention of the label column to each column (the label itself last), averaged over the
+            rows asked for (test rows by default), heads and blocks, shape (C + 1,), if asked for.
     """
 
     logits: torch.Tensor
@@ -134,6 +141,7 @@ class TabOmicsModel(nn.Module):
         num_mem_chunks: int = 1,
         return_embeddings: bool = False,
         return_label_attention: bool = False,
+        label_attention_rows: str = "test",
     ) -> TabOmicsOutput:
         """Classifies the test rows of a batch of tables.
 
@@ -144,10 +152,23 @@ class TabOmicsModel(nn.Module):
             num_mem_chunks: Pieces the memory-heavy steps are split into, at inference (1 in training).
             return_embeddings: Also return the label-column embedding of every row.
             return_label_attention: Also return the label column's attention to each column.
+            label_attention_rows: Rows it is averaged over: "test" (default), "train" or "all"; what each means is
+                explained at LABEL_ATTENTION_ROWS in tabomics.model.layers.
 
         Returns:
             The logits of the test rows, and the extras asked for.
         """
+        rows = None
+        if return_label_attention:
+            if label_attention_rows not in LABEL_ATTENTION_ROWS:
+                raise ValueError(
+                    f"label_attention_rows must be one of {LABEL_ATTENTION_ROWS}, got {label_attention_rows!r}"
+                )
+            if (label_attention_rows == "test" and x.shape[1] == train_size) or (
+                label_attention_rows == "train" and train_size == 0
+            ):
+                raise ValueError(f"no {label_attention_rows} rows to average the label attention over")
+            rows = label_attention_rows
         if y_train.dim() < x.dim():
             y_train = y_train.unsqueeze(-1)
         cells = self.add_column_vectors(self.feature_encoder(x, train_size))
@@ -165,7 +186,7 @@ class TabOmicsModel(nn.Module):
                     table = table.to(torch.get_autocast_dtype(device_type))
                 table, _ = checkpoint(block, table, train_size, use_reentrant=False)
             else:
-                table, attention = block(table, train_size, num_mem_chunks, return_label_attention)
+                table, attention = block(table, train_size, num_mem_chunks, rows)
                 attentions.append(attention)
 
         return TabOmicsOutput(

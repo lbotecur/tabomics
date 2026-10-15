@@ -34,7 +34,8 @@ def test_same_logits_embeddings_and_label_attention(reference):
     model, data = reference
     x, y, n = torch.from_numpy(data["x"]), torch.from_numpy(data["y"]), int(data["train_size"])
     with torch.no_grad():
-        out = model.run(x, y, n, return_embeddings=True, return_label_attention=True)
+        # the reference averages the label attention over all rows
+        out = model.run(x, y, n, return_embeddings=True, return_label_attention=True, label_attention_rows="all")
     # same operations in the same order: identical on the same machine, rounding-level elsewhere
     np.testing.assert_allclose(out.logits.numpy(), data["logits"], rtol=0, atol=1e-6)
     np.testing.assert_allclose(out.embeddings.numpy(), data["embeddings"], rtol=0, atol=1e-6)
