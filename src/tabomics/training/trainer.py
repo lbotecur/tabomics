@@ -79,7 +79,9 @@ def train(
         run_dir: Where the checkpoints and the step log go.
         epochs: Last epoch to train (a resumed run continues from its checkpoint's epoch).
         lr: Learning rate.
-        accumulate: Batches whose gradients are summed per optimizer step; must divide the batches per epoch.
+        accumulate: Batches whose gradients are summed per optimizer step; must divide the batches per epoch. A
+            batch with missing labels is skipped; if that leaves the last group of an epoch short, it still makes
+            a step, with its gradients rescaled to the mean over the batches it has.
         warmup_steps: Optimizer steps of linear warmup of the learning rate.
         grad_clip: Largest gradient norm.
         augmentation: Widening, sparse columns and missing values; None = none.
@@ -120,7 +122,7 @@ def train(
             model.train()
             optimizer.train()
             optimizer.zero_grad()
-            total_loss, num_batches = 0.0, 0
+            total_loss, num_batches, skipped = 0.0, 0, 0
             window_loss, window_wait, window_norms = 0.0, 0.0, []
             batches = iter(loader)
             while True:
@@ -134,6 +136,7 @@ def train(
                 )
                 y_train = y[:, :train_size].to(device)
                 if torch.isnan(y_train).any():  # missing features are the model's job; missing labels are not
+                    skipped += 1
                     continue
                 with torch.autocast(device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
                     logits = model(x, y_train, train_size)
@@ -166,13 +169,29 @@ def train(
                     optimizer.step()
                     optimizer.zero_grad()
 
+            # After a skipped batch the last group is short and would never reach the step above; its gradients
+            # would be cleared by the next epoch's zero_grad. Step on it instead, rescaled to a mean over the batches
+            # it has (each loss was divided by accumulate), so that its step has the scale of the others.
+            short = num_batches % accumulate
+            if short:
+                for parameter in model.parameters():
+                    if parameter.grad is not None:
+                        parameter.grad.mul_(accumulate / short)
+                window_norms.append(nn.utils.clip_grad_norm_(model.parameters(), grad_clip).item())
+                optimizer.step()
+                optimizer.zero_grad()
+
             mean_loss = total_loss / max(num_batches, 1)
             model.eval()
             optimizer.eval()  # the averaged weights: these are saved
             save_checkpoint(run_dir / LATEST, model, optimizer, epoch)
             if snapshot_every and epoch % snapshot_every == 0:
                 save_checkpoint(run_dir / f"epoch_{epoch}.pth", model, optimizer, epoch)
-            print(f"Epoch {epoch:5d} | Time {time.time() - start:5.2f}s | Mean Loss {mean_loss:5.2f}", flush=True)
+            print(
+                f"Epoch {epoch:5d} | Time {time.time() - start:5.2f}s | Mean Loss {mean_loss:5.2f} | "
+                f"Skipped {skipped} (missing labels)",
+                flush=True,
+            )
             if on_epoch_end is not None and on_epoch_end(epoch, mean_loss):
                 break
     return mean_loss
