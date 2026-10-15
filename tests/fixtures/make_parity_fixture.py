@@ -30,6 +30,7 @@ with torch.no_grad():
         block.save_feature_attention = True
     model((xt, yt), train_test_split_index=train_size)
     embeddings = model.embeddings
+    # averaged over all rows, training and test: compared with TabOmicsModel.run(label_attention_rows="all")
     attention = torch.stack([b.feature_attention for b in model.transformer_blocks]).mean(dim=0)
 
 np.savez(

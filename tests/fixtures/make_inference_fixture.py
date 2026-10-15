@@ -1,8 +1,9 @@
 """Writes parity_inference.npz: the outputs of the reference classifier and regressor (TFM-Playground's
 NanoTabPFNClassifier/NanoTabPFNRegressor, where TabOmics was developed) on a small table with missing values and
 categorical columns, for test_inference_parity.py. The classifier uses the model of parity_model.npz; the
-regressor a small model whose weights are stored here. Needs TFM-Playground's tfmplayground package; run from
-the repository root:
+regressor a small model whose weights are stored here. The reference's feature importance averages the label
+attention over all rows, training and test: test_inference_parity.py compares it with feature_importance(rows="all").
+Needs TFM-Playground's tfmplayground package; run from the repository root:
     python tests/fixtures/make_inference_fixture.py
 """
 
