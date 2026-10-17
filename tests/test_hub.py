@@ -54,7 +54,7 @@ def test_load_model_dispatches_on_the_source(tmp_path):
 
 @pytest.fixture
 def published(tmp_path, monkeypatch):
-    """A fake published model "v2": hf_hub_download serves the files of a local release."""
+    """Fake published models "v2" and the default: hf_hub_download serves the files of a local release."""
     model = small_model()
     release = save_pretrained(model, tmp_path / "hub")
     calls = []
@@ -68,6 +68,7 @@ def published(tmp_path, monkeypatch):
     monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_download)
     spec = hub.PublishedModel("lbotecur/tabomics-v2", "abc123", hub.sha256_of(release / WEIGHTS_FILE), "c", "")
     monkeypatch.setitem(hub.PUBLISHED_MODELS, "v2", spec)
+    monkeypatch.setitem(hub.PUBLISHED_MODELS, hub.DEFAULT_CLASSIFIER, spec)
     return model, calls
 
 
@@ -97,6 +98,14 @@ def test_unknown_and_unpublished_names():
     if hub.PUBLISHED_MODELS["v2"].revision is None:
         with pytest.raises(RuntimeError, match="not published"):
             hub.download("v2")
+
+
+def test_published_models_are_pinned_and_the_default_is_one_of_them():
+    assert hub.DEFAULT_CLASSIFIER in hub.PUBLISHED_MODELS
+    for name, spec in hub.PUBLISHED_MODELS.items():
+        assert spec.revision is not None and len(spec.revision) == 40, name  # a full commit, never a branch
+        assert spec.sha256 is not None and len(spec.sha256) == 64, name
+        assert spec.repo_id == f"lbotecur/tabomics-{name}", name
 
 
 def test_export_script_writes_a_release_that_reproduces_the_checkpoint(tmp_path):

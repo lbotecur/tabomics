@@ -5,7 +5,7 @@ fold to a CSV (it resumes an interrupted run). It does not compare with other mo
 estimator can be evaluated on the same folds with `tabomics.benchmarks.run_benchmark`, tuned as its user sees fit.
 
 ```bash
-python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to/data
+python scripts/evaluate.py --model v2.5 --suite hdlss mlomics --data-root /path/to/data
 ```
 
 | Suite | Tasks | Folds |

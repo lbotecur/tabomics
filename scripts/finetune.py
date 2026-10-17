@@ -2,12 +2,12 @@
 # Copyright (C) 2026 Luis Bote-Curiel
 """Fine-tunes a model on real tables: a model for a domain, to be evaluated on other tables.
 
-    # v2 fine-tuned on the single-omic tables of MLOmics, then evaluated on the Shamir tables (never seen)
-    python -u scripts/finetune.py --model v2 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics \
+    # v2.5 fine-tuned on the single-omic tables of MLOmics, then evaluated on the Shamir tables (never seen)
+    python -u scripts/finetune.py --model v2.5 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics \
         --datasets BRCA/mrna COAD/mrna GBM/mrna LGG/mrna OV/mrna --device cuda:0
     python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir --data-root /path/to/data
     # your own tables (CSV, label in --target or the last column)
-    python -u scripts/finetune.py --model v2 --data cohort_a.csv cohort_b.csv --target subtype --output runs/ft_mine
+    python -u scripts/finetune.py --model v2.5 --data cohort_a.csv cohort_b.csv --target subtype --output runs/ft_mine
 
 Every row of the given tables is used (10% of each held out for early stopping), so tables used here must not be
 the ones the model is evaluated on. To fine-tune on each dataset of a benchmark inside its folds, use
@@ -23,9 +23,14 @@ import torch
 
 from tabomics.benchmarks import SUITES
 from tabomics.finetuning import finetune, prepare_table
+from tabomics.hub import DEFAULT_CLASSIFIER
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-parser.add_argument("--model", default="v2", help="published name (v2), release directory, .safetensors or .pth")
+parser.add_argument(
+    "--model",
+    default=DEFAULT_CLASSIFIER,
+    help="published name (default %(default)s), release directory, .safetensors or .pth",
+)
 parser.add_argument("--output", required=True, help="directory for finetuned.pth and the logs")
 parser.add_argument("--suite", nargs="+", default=[], choices=sorted(SUITES), help="tables of benchmark suites")
 parser.add_argument("--data-root", default=None, help="folder with the benchmark data (with --suite)")

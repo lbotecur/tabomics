@@ -19,7 +19,7 @@ Hugging Face the first time they are used. While the repositories are private, l
 ```python
 from tabomics import Classifier
 
-clf = Classifier().fit(X_train, y_train)  # the published model, v2; fit only stores the training rows
+clf = Classifier().fit(X_train, y_train)  # the published model, v2.5; fit only stores the training rows
 proba = clf.predict_proba(X_test)  # one forward pass over training and test rows
 labels = clf.predict(X_test)
 ```
@@ -64,7 +64,8 @@ The [examples](examples) show all of this on a real gene-expression table, and t
 
 | Name | Description |
 |---|---|
-| `v2` (default) | A transformer with 12 layers, an embedding size of 192 and 7.3M parameters, pretrained on synthetic tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
+| `v2.5` (default) | The architecture of v2 with a longer base stage of training, and better than v2 on the HDLSS, MLOmics and Shamir benchmarks. [Model card](https://huggingface.co/lbotecur/tabomics-v2.5) |
+| `v2` | A transformer with 12 layers, an embedding size of 192 and 7.3M parameters, pretrained on synthetic tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
 
 A name points to a fixed commit of the model's Hugging Face repository and to the SHA-256 of its weights, so it
 always loads the same model. `Classifier(model=...)` also takes a release directory, a `.safetensors` file, a
@@ -76,7 +77,7 @@ training checkpoint (`.pth`) or a `TabOmicsModel`.
 writes one row per fold to a CSV. See [docs/benchmarks.md](docs/benchmarks.md) for the suites and their data.
 
 ```bash
-python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to/data
+python scripts/evaluate.py --model v2.5 --suite hdlss mlomics --data-root /path/to/data
 ```
 
 Other models (random forest, XGBoost, TabPFN, TabICL...) are evaluated on the same folds with
@@ -99,7 +100,7 @@ proba = clf.predict_proba(X_test)
 A model for a domain is fine-tuned once on many tables, then used as any other model:
 
 ```bash
-python scripts/finetune.py --model v2 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics
+python scripts/finetune.py --model v2.5 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics
 python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir --data-root /path/to/data
 ```
 
@@ -110,11 +111,11 @@ python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir 
 
 Pretraining runs on synthetic tables only: a generator of random causal graphs, with
 widening to thousands of columns. A stage of training is a JSON recipe: architecture, synthetic
-tables, augmentations and optimization. `configs/v2/` has the four stages that produced v2 ([how to rerun
-them](configs/v2/README.md)); change anything from the command line:
+tables, augmentations and optimization. `configs/v2.5/` has the three stages that produced v2.5 and `configs/v2/`
+the four of v2 ([how to rerun them](configs/v2.5/README.md)); change anything from the command line:
 
 ```bash
-python scripts/train.py --config configs/v2/1_base.json --run-dir runs/mine --device cuda:0 \
+python scripts/train.py --config configs/v2.5/1_base.json --run-dir runs/mine --device cuda:0 \
     --set model.num_layers=6 --set training.lr=3e-4
 python scripts/export.py --checkpoint runs/mine/latest_checkpoint.pth --output release/mine --name mine
 ```

@@ -68,8 +68,9 @@ class TabOmicsEstimator(BaseEstimator):
     """Base of Classifier and Regressor (scikit-learn compatible: parameters are stored as given).
 
     Args:
-        model: A published model's name ("v2"), a release directory or `.safetensors` file, a training checkpoint
-            (`.pth`), or a TabOmicsModel. None: the default model of the estimator (the classifier: "v2").
+        model: A published model's name ("v2.5"), a release directory or `.safetensors` file, a training checkpoint
+            (`.pth`), or a TabOmicsModel. None: the default model of the estimator (the classifier:
+            tabomics.hub.DEFAULT_CLASSIFIER, "v2.5").
         cache_dir: Where published models are downloaded; default Hugging Face's cache.
         device: Where to run; default CUDA, else MPS, else CPU.
         amp_dtype: Mixed precision, e.g. torch.bfloat16 (much faster on wide tables on GPU); None runs in

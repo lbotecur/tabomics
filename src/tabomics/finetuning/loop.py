@@ -192,7 +192,7 @@ def finetune(
     one dataset, give only its training rows (never its test rows) and evaluate on its test rows.
 
     Args:
-        model: The pretrained model: a published name ("v2"), a release, a checkpoint or a TabOmicsModel (which is
+        model: The pretrained model: a published name ("v2.5"), a release, a checkpoint or a TabOmicsModel (which is
             not modified: a copy is fine-tuned).
         tables: The tables: (X, y) pairs, (X, y, X_val, y_val) with validation rows of one's own, or prepared
             FinetuneTable's.

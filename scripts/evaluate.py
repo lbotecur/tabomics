@@ -2,10 +2,10 @@
 # Copyright (C) 2026 Luis Bote-Curiel
 """Evaluates a TabOmics model on benchmark suites: one row per fold in a CSV (resumable), and a summary.
 
-    python scripts/evaluate.py --model v2 --suite hdlss mlomics --data-root /path/to/data
+    python scripts/evaluate.py --model v2.5 --suite hdlss mlomics --data-root /path/to/data
     python scripts/evaluate.py --model my_model.pth --suite cc18 --data-root /path/to/data --device cuda:1
     # fine-tuned on the training rows of each fold first (tabomics.finetuning.FineTunedClassifier)
-    python scripts/evaluate.py --model v2 --suite hdlss --data-root /path/to/data --finetune
+    python scripts/evaluate.py --model v2.5 --suite hdlss --data-root /path/to/data --finetune
 
 The data of each suite is described in its module (tabomics/benchmarks/) and in docs/benchmarks.md. Other models
 (any scikit-learn-like estimator) are evaluated with tabomics.benchmarks.run_benchmark from Python.
@@ -18,11 +18,16 @@ import torch
 from tabomics import Classifier
 from tabomics.benchmarks import SUITES, run_benchmark, summarize
 from tabomics.finetuning import FineTunedClassifier
+from tabomics.hub import DEFAULT_CLASSIFIER
 from tabomics.inference.base import default_device
 from tabomics.model.io import load_model
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-parser.add_argument("--model", default="v2", help="published name (v2), release directory, .safetensors or .pth")
+parser.add_argument(
+    "--model",
+    default=DEFAULT_CLASSIFIER,
+    help="published name (default %(default)s), release directory, .safetensors or .pth",
+)
 parser.add_argument("--suite", nargs="+", required=True, choices=sorted(SUITES))
 parser.add_argument("--data-root", required=True, help="folder with the benchmark data")
 parser.add_argument("--datasets", nargs="+", default=None, help="only these tasks, e.g. arcene BRCA/mrna")

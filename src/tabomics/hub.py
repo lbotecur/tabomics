@@ -43,8 +43,15 @@ PUBLISHED_MODELS: dict[str, PublishedModel] = {
         task="classification",
         description="TabOmics v2: 7.3M parameters, trained on synthetic tables up to 3000 columns.",
     ),
+    "v2.5": PublishedModel(
+        repo_id="lbotecur/tabomics-v2.5",
+        revision="c58569972b754253b2756f3463010572d4d222a9",
+        sha256="9d3d93560f029dea44678a387c3fdd03776ea95ebf3e59861829b2f974f4dac7",
+        task="classification",
+        description="TabOmics v2.5: the architecture of v2 with a longer base stage of training (configs/v2.5).",
+    ),
 }
-DEFAULT_CLASSIFIER = "v2"
+DEFAULT_CLASSIFIER = "v2.5"
 
 
 def sha256_of(path: str | Path) -> str:
@@ -60,7 +67,7 @@ def download(name: str, cache_dir: str | Path | None = None) -> Path:
     """Downloads a published model (once: later calls use the cache, also offline) and checks its weights.
 
     Args:
-        name: Its name, e.g. "v2".
+        name: Its name, e.g. "v2.5".
         cache_dir: Where to keep it; default Hugging Face's cache (`~/.cache/huggingface/hub`, or `HF_HOME`).
 
     Returns:

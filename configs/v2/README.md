@@ -7,7 +7,7 @@ where TabOmics was developed). Each stage starts from the previous one's weights
 |---|---|---|---|---|---|---|---|
 | 1_base | graph prior | 2-100 | 40-1024 | 8 | 1e-4 | 100 | 42 |
 | 2_rows2048 | graph prior | 2-100 | 40-2048 | 8 | 1e-4 | 100 | 1100 |
-| 3_widening | graph prior, widened (70% of batches) by 200-3000 columns | 2-350 (+ added) | 40-1024 | 1 x 8 | 1e-4 | 30 | 1100 |
+| 3_widening | graph prior, widened (30% of batches) by 200-3000 columns | 2-350 (+ added) | 40-1024 | 1 x 8 | 1e-4 | 30 | 1100 |
 | 4_low_lr | as stage 3 | | | 1 x 8 | 3e-5 | 30 | 1030 |
 
 All stages: TabICL's tables as TabICL gives them (`raw: false`: clamped and z-scored; TabOmics v3 uses raw
@@ -16,8 +16,8 @@ tables), rows drawn log-uniformly, graphs whose labels depend on no feature resa
 bf16, gradient checkpointing.
 
 The model was trained with feature clip 100 (the clip of the standardized feature values, fixed at the time); the
-published v2 is used with 10, which only bounds values outside the training distribution (see the paper). So the
-last checkpoint is exported with `--feature-clip 10`:
+published v2 is used with 10, which only bounds values outside the training distribution. So the last
+checkpoint is exported with `--feature-clip 10`:
 
 ```bash
 python -u scripts/train.py --config configs/v2/1_base.json --run-dir runs/v2/1_base --device cuda:0
