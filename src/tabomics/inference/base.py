@@ -55,6 +55,17 @@ class EnsembleMember:
         return X[:, self.columns]
 
 
+def model_name(source: TabOmicsModel | str | Path) -> str:
+    """How a model source is recorded: a published name as is, a file or directory by its absolute path."""
+    from tabomics import hub
+
+    if isinstance(source, TabOmicsModel):
+        return "TabOmicsModel"
+    if isinstance(source, str) and source in hub.PUBLISHED_MODELS:
+        return source
+    return str(Path(source).resolve())
+
+
 def default_device() -> torch.device:
     """CUDA if available, else Apple's MPS, else the CPU."""
     if torch.cuda.is_available():
@@ -93,6 +104,10 @@ class TabOmicsEstimator(BaseEstimator):
         n_estimators: Number of passes averaged. The first is the table as given; each other one relabels it (column
             order, category codes, and for the classifier class indices). 1, the default, is a single pass.
         random_state: Seed of those relabellings.
+
+    After fit, `model_name_` says which model was used: a published model by its name ("v2.5"), a file or
+    directory by its absolute path (for a model downloaded with huggingface_hub, the path holds the repository and
+    the commit), and a TabOmicsModel passed as an object as "TabOmicsModel".
     """
 
     def __init__(
@@ -137,6 +152,7 @@ class TabOmicsEstimator(BaseEstimator):
             self.device_ = torch.device(self.device) if self.device is not None else default_device()
             source = self.model if self.model is not None else self._default_model()
             self.model_ = load_model(source, cache_dir=self.cache_dir).to(self.device_).eval()
+            self.model_name_ = model_name(source)
             self._model_source = self.model
         if self.feature_clip is not None:
             self.model_.feature_clip = self.feature_clip

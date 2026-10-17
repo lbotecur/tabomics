@@ -70,6 +70,8 @@ The [examples](examples) show all of this on a real gene-expression table, and t
 A name points to a fixed commit of the model's Hugging Face repository and to the SHA-256 of its weights, so it
 always loads the same model. `Classifier(model=...)` also takes a release directory, a `.safetensors` file, a
 training checkpoint (`.pth`) or a `TabOmicsModel`.
+After `fit`, `clf.model_name_` says which model was used: its name for a published model, else the absolute path
+of the file or directory it was loaded from.
 
 ## Benchmarks
 

@@ -92,6 +92,18 @@ def test_classifier_without_a_model_uses_the_default(published):
     assert proba.shape == (10, 2)
 
 
+def test_the_classifier_records_which_model_it_used(published, tmp_path):
+    model, _ = published
+    rng = np.random.default_rng(0)
+    X, y = rng.normal(size=(40, 4)), rng.integers(0, 2, 40)
+    assert Classifier(device="cpu").fit(X, y).model_name_ == hub.DEFAULT_CLASSIFIER
+    assert Classifier(model="v2", device="cpu").fit(X, y).model_name_ == "v2"
+    release = save_pretrained(model, tmp_path / "mine")
+    for source in (release, release / WEIGHTS_FILE):
+        assert Classifier(model=source, device="cpu").fit(X, y).model_name_ == str(source.resolve())
+    assert Classifier(model=model, device="cpu").fit(X, y).model_name_ == "TabOmicsModel"
+
+
 def test_unknown_and_unpublished_names():
     with pytest.raises(KeyError, match="published models"):
         hub.download("v99")
