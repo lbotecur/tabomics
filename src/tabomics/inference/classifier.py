@@ -19,12 +19,12 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
 
     `fit` only stores the training rows (no weights change); `predict_proba` runs the model once over the
     training and test rows. Labels can be any values (strings, non-contiguous integers); at most
-    `num_outputs` classes (10 for v2).
+    `num_outputs` classes (10 for v2 and v2.5).
 
     See TabOmicsEstimator for the parameters.
 
     Example:
-        >>> clf = Classifier().fit(X_train, y_train)  # the default model, v2, downloaded once
+        >>> clf = Classifier().fit(X_train, y_train)  # the default model, v2.5, downloaded once
         >>> proba = clf.predict_proba(X_test)
     """
 

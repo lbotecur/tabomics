@@ -1,0 +1,56 @@
+{
+  "description": "v2.5 stage 1: base on graph_scm tables of 40-1024 rows and 2-100 columns (TFM-Playground run v2_p1_big, epoch 300; the same run as v2's stage 1, trained 200 epochs longer).",
+  "model": {
+    "embedding_size": 192,
+    "num_attention_heads": 6,
+    "mlp_hidden_size": 768,
+    "num_layers": 12,
+    "num_outputs": 10,
+    "feature_clip": 100.0,
+    "permute_columns": false
+  },
+  "prior": {
+    "min_rows": 40,
+    "max_rows": 1024,
+    "min_features": 2,
+    "max_features": 100,
+    "max_classes": 10,
+    "raw": false,
+    "log_seq_len": true,
+    "min_train_size": 0.3,
+    "max_train_size": 0.9,
+    "batch_size_per_gp": null,
+    "fct_types": null,
+    "filter_graphs": true,
+    "filter_datasets": false
+  },
+  "augmentation": {
+    "add_features_min": 200,
+    "add_features_max": 0,
+    "sparsity_max": 0.05,
+    "noise_max": 1.0,
+    "include_original_prob": 0.5,
+    "max_cats": 20,
+    "prob_no_widening": 0.3,
+    "widen_max_rows": 0,
+    "sparse_columns_prob": 0.0,
+    "sparse_columns_max_fraction": 1.0,
+    "missing_rate_max": 0.1
+  },
+  "training": {
+    "epochs": 300,
+    "steps_per_epoch": 1000,
+    "batch_size": 8,
+    "accumulate": 1,
+    "lr": 0.0001,
+    "warmup_steps": 500,
+    "grad_clip": 1.0,
+    "amp_dtype": "bfloat16",
+    "gradient_checkpointing": true,
+    "seed": 42,
+    "workers": 6,
+    "snapshot_every": 5,
+    "log_every": 50
+  },
+  "init_from": null
+}

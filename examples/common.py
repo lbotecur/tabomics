@@ -12,6 +12,8 @@ import torch
 from sklearn.datasets import make_classification
 from sklearn.preprocessing import LabelEncoder
 
+from tabomics.hub import DEFAULT_CLASSIFIER
+
 # Golub et al. (1999): bone-marrow samples of acute lymphoblastic (ALL) and myeloid (AML) leukemia, expression of
 # 7129 genes in 72 patients. OpenML dataset 1104.
 LEUKEMIA_ID = 1104
@@ -22,7 +24,7 @@ def parser(description: str) -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=description)
     p.add_argument("--data", default="leukemia", help="'leukemia' (downloaded from OpenML), 'synthetic', or a CSV")
     p.add_argument("--target", default=None, help="label column of a CSV (default: the last one)")
-    p.add_argument("--model", default="v2", help="published name, release directory or checkpoint")
+    p.add_argument("--model", default=DEFAULT_CLASSIFIER, help="published name, release directory or checkpoint")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--quick", action="store_true", help="tiny synthetic run, to check that the example works")
     return p

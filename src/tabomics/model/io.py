@@ -88,7 +88,7 @@ def load_model(source: TabOmicsModel | str | Path, cache_dir: str | Path | None 
     """Any model source to a model.
 
     Args:
-        source: A TabOmicsModel (returned as is); the name of a published model ("v2", see tabomics.hub);
+        source: A TabOmicsModel (returned as is); the name of a published model ("v2.5", see tabomics.hub);
             a release directory or `.safetensors` file; or a training checkpoint (`.pth` / `.pt`).
         cache_dir: Where published models are downloaded (default: Hugging Face's cache).
 

@@ -6,7 +6,7 @@ Writes model.safetensors, config.json and a model card (README.md), reloads the 
 exactly the outputs of the checkpoint, and prints the SHA-256 of the weights (to register the model in
 tabomics/hub.py). For example:
 
-    python scripts/export.py --checkpoint runs/v2/4_low_lr/epoch_30.pth --output release/tabomics-v2 --name v2 \
+    python scripts/export.py --checkpoint runs/v2.5/3_low_lr/epoch_30.pth --output release/tabomics-v2.5 --name v2.5 \
         --feature-clip 10
 """
 
@@ -47,7 +47,7 @@ Code, documentation and licence: https://github.com/lbotecur/tabomics (GNU Gener
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
 parser.add_argument("--checkpoint", required=True, help="training checkpoint (.pth)")
 parser.add_argument("--output", required=True, help="release directory to write")
-parser.add_argument("--name", required=True, help="model name, e.g. v2 (used in the model card)")
+parser.add_argument("--name", required=True, help="model name, e.g. v2.5 (used in the model card)")
 parser.add_argument("--task", default="classification", choices=["classification", "regression"])
 parser.add_argument(
     "--permute-columns",
@@ -59,8 +59,8 @@ parser.add_argument(
     "--feature-clip",
     type=float,
     default=None,
-    help="store the feature clip the model is meant to be used with (default: the checkpoint's own); the v2 was "
-    "trained with 100 and is used with 10",
+    help="store the feature clip the model is meant to be used with (default: the checkpoint's own); v2 and v2.5 "
+    "were trained with 100 and are used with 10",
 )
 args = parser.parse_args()
 
