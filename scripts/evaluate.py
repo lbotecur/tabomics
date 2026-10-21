@@ -37,6 +37,7 @@ parser.add_argument("--device", default=None, help="default: CUDA if available, 
 parser.add_argument("--precision", default="bf16", choices=["bf16", "fp32"], help="bf16 on GPU only (default)")
 parser.add_argument("--n-estimators", type=int, default=1)
 parser.add_argument("--finetune", action="store_true", help="fine-tune on the training rows of each fold first")
+parser.add_argument("--retry-failed", action="store_true", help="evaluate again the folds that failed (oom, error)")
 args = parser.parse_args()
 
 device = args.device or str(default_device())
@@ -58,6 +59,8 @@ def make_estimator(categorical: list[int]) -> Classifier:
     )  # fmt: skip
 
 
-results = run_benchmark(make_estimator, name, args.suite, args.data_root, output, datasets=args.datasets)
+results = run_benchmark(
+    make_estimator, name, args.suite, args.data_root, output, datasets=args.datasets, retry_failed=args.retry_failed
+)
 print(summarize(results[results.model == name]).round(4).to_string())
 print(f"results: {output}")
