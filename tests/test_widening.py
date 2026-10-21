@@ -93,3 +93,26 @@ def test_mcar_sparse_and_category_helpers():
     table = torch.stack([torch.randn(100), torch.randint(0, 3, (100,)).float()], dim=1)
     table[0, 1] = float("nan")  # a missing value is not a category
     assert detect_categorical_mask(table).tolist() == [False, True]
+
+
+def test_detect_ignores_the_prior_masks_as_the_original_runs_of_v2_did():
+    x, y, masks = case_input(dict(CASES["widen_masks_short"], with_masks=True))
+    config = dict(CASES["widen_masks_short"]["config"])
+    torch.manual_seed(3)
+    detected = augment_batch(x, y, 70, AugmentationConfig(**config, widening_categorical="detect"), masks)
+    torch.manual_seed(3)
+    without_masks = augment_batch(x, y, 70, AugmentationConfig(**config), None)
+    assert torch.equal(detected[0].nan_to_num(nan=-1), without_masks[0].nan_to_num(nan=-1))
+    torch.manual_seed(3)
+    with_masks = augment_batch(x, y, 70, AugmentationConfig(**config), masks)
+    assert not torch.equal(with_masks[0].nan_to_num(nan=-1), detected[0].nan_to_num(nan=-1))
+    with pytest.raises(ValueError, match="widening_categorical"):
+        AugmentationConfig(widening_categorical="mask")
+
+
+def test_the_recipes_of_v2_and_v25_detect_categorical_columns():
+    from tabomics.training.recipe import Recipe
+
+    recipes = sorted(Path(__file__).parents[1].glob("configs/v2*/*.json"))
+    assert len(recipes) == 7
+    assert all(Recipe.load(path).augmentation.widening_categorical == "detect" for path in recipes)
