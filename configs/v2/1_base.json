@@ -35,7 +35,8 @@
     "widen_max_rows": 0,
     "sparse_columns_prob": 0.0,
     "sparse_columns_max_fraction": 1.0,
-    "missing_rate_max": 0.1
+    "missing_rate_max": 0.1,
+    "widening_categorical": "detect"
   },
   "training": {
     "epochs": 100,

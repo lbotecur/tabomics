@@ -18,6 +18,9 @@ from dataclasses import dataclass
 
 import torch
 
+# Where widening takes the categorical columns from (see AugmentationConfig.widening_categorical).
+WIDENING_CATEGORICAL = ("prior", "detect")
+
 
 @dataclass
 class AugmentationConfig:
@@ -37,6 +40,10 @@ class AugmentationConfig:
         sparse_columns_prob: Probability that a widened batch gets sparse columns.
         sparse_columns_max_fraction: Largest share of its columns made sparse (drawn in [0, max]).
         missing_rate_max: Largest share of cells set missing (drawn in [0, max] per batch); 0 disables it.
+        widening_categorical: Where widening takes the categorical columns from. "prior": the prior's categorical
+            masks when it gives them, the new categorical columns recoded 0..K-1. "detect": columns with at most 20
+            distinct values (TabPFN-Wide's rule), not recoded; the recipes of v2 and v2.5 use it, as their original
+            runs did. Without masks from the prior, both detect.
     """
 
     add_features_min: int = 0
@@ -50,6 +57,13 @@ class AugmentationConfig:
     sparse_columns_prob: float = 0.0
     sparse_columns_max_fraction: float = 1.0
     missing_rate_max: float = 0.0
+    widening_categorical: str = "prior"
+
+    def __post_init__(self):
+        if self.widening_categorical not in WIDENING_CATEGORICAL:
+            raise ValueError(
+                f"widening_categorical must be one of {WIDENING_CATEGORICAL}, got {self.widening_categorical!r}"
+            )
 
 
 def augment_batch(
@@ -70,7 +84,8 @@ def augment_batch(
         train_size: Training rows (the first ones).
         config: The augmentations.
         categorical: Categorical columns, shape (B, H), if the prior gives them (their codes are 0..K-1, and the
-            new categorical columns get such codes too); None = detected (at most 20 distinct values).
+            new categorical columns get such codes too); None = detected (at most 20 distinct values). Ignored with
+            config.widening_categorical = "detect".
 
     Returns:
         The new features (B, T', H'), targets (B, T') and training rows: T' < T only if a widened batch is
@@ -85,6 +100,7 @@ def augment_batch(
         num_add = int(torch.randint(config.add_features_min, config.add_features_max + 1, (1,)).item())
         sparsity = torch.rand(1).item() * config.sparsity_max
         noise = torch.rand(1).item() * config.noise_max
+        masks = categorical if config.widening_categorical == "prior" else None
         x = add_mixed_widening_features(
             x,
             num_add,
@@ -92,8 +108,8 @@ def augment_batch(
             noise,
             max_cats=config.max_cats,
             include_original_prob=config.include_original_prob,
-            categorical_masks=categorical,
-            recode_categoricals=categorical is not None,
+            categorical_masks=masks,
+            recode_categoricals=masks is not None,
         )
         if config.sparse_columns_prob > 0 and torch.rand(1).item() < config.sparse_columns_prob:
             x = sparsify_columns(x, torch.rand(1).item() * config.sparse_columns_max_fraction)
