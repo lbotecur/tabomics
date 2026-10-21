@@ -14,7 +14,7 @@ table, `--device cpu` without a GPU, and `--quick` runs a tiny synthetic version
 | `05_finetune.py` | Fine-tuning on the training rows (`FineTunedClassifier`), compared with the pretrained model; a fine-tuned model saved and reused. |
 
 ```bash
-pip install -r examples/requirements.txt   # matplotlib, for the plot of 02
+pip install -r examples/requirements.txt   # matplotlib for the plot of 02, openml for the leukemia table
 python examples/01_classify.py
 python examples/04_train_and_continue.py --device cuda
 ```

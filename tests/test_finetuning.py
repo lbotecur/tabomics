@@ -247,3 +247,24 @@ def test_finetune_script_end_to_end(tmp_path):
     assert result.returncode == 0, result.stderr[-3000:]
     assert {"finetuned.pth", "history.csv", "steps.csv"} <= {p.name for p in (tmp_path / "out").iterdir()}
     assert len(pd.read_csv(tmp_path / "out" / "history.csv")) >= 2
+
+
+def test_finetune_script_declares_categorical_columns_per_table(tmp_path):
+    for i in range(2):
+        X, y = random_table(seed=i)
+        table = pd.DataFrame(X, columns=[f"g{j}" for j in range(X.shape[1])]).assign(label=y)
+        table.to_csv(tmp_path / f"t{i}.csv", index=False)
+    release = tmp_path / "tiny"
+    from tabomics.model.io import save_pretrained
+
+    save_pretrained(tiny_model(), release)
+    base = [sys.executable, str(REPO / "scripts" / "finetune.py"), "--model", str(release), "--data",
+            str(tmp_path / "t0.csv"), str(tmp_path / "t1.csv"), "--output", str(tmp_path / "out"), "--device", "cpu",
+            "--epochs", "1", "--steps-per-epoch", "2", "--accumulate", "1", "--lr", "1e-3"]  # fmt: skip
+    result = subprocess.run([*base, "--categorical", "0,1", "none", "--no-infer-categorical"],
+                            capture_output=True, text=True)  # fmt: skip
+    assert result.returncode == 0, result.stderr[-3000:]
+    lines = [line for line in result.stdout.splitlines() if line.endswith("categorical")]
+    assert lines[0].endswith(" 2 categorical") and lines[1].endswith(" 0 categorical")
+    wrong = subprocess.run([*base, "--categorical", "0,1"], capture_output=True, text=True)
+    assert wrong.returncode != 0 and "one entry per table" in wrong.stderr

@@ -64,7 +64,7 @@ The [examples](examples) show all of this on a real gene-expression table, and t
 
 | Name | Description |
 |---|---|
-| `v2.5` (default) | The architecture of v2 with a longer base stage of training, and better than v2 on the HDLSS, MLOmics and Shamir benchmarks. [Model card](https://huggingface.co/lbotecur/tabomics-v2.5) |
+| `v2.5` (default) | The architecture of v2 with a longer base stage of training. [Model card](https://huggingface.co/lbotecur/tabomics-v2.5) |
 | `v2` | A transformer with 12 layers, an embedding size of 192 and 7.3M parameters, pretrained on synthetic tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
 
 A name points to a fixed commit of the model's Hugging Face repository and to the SHA-256 of its weights, so it
@@ -72,18 +72,6 @@ always loads the same model. `Classifier(model=...)` also takes a release direct
 training checkpoint (`.pth`) or a `TabOmicsModel`.
 After `fit`, `clf.model_name_` says which model was used: its name for a published model, else the absolute path
 of the file or directory it was loaded from.
-
-## Benchmarks
-
-`scripts/evaluate.py` evaluates a model on fixed folds of the HDLSS, MLOmics, Shamir and OpenML-CC18 suites and
-writes one row per fold to a CSV. See [docs/benchmarks.md](docs/benchmarks.md) for the suites and their data.
-
-```bash
-python scripts/evaluate.py --model v2.5 --suite hdlss mlomics --data-root /path/to/data
-```
-
-Other models (random forest, XGBoost, TabPFN, TabICL...) are evaluated on the same folds with
-[baselines/evaluate.py](baselines), which installs nothing with TabOmics.
 
 ## Fine-tuning
 
@@ -102,12 +90,14 @@ proba = clf.predict_proba(X_test)
 A model for a domain is fine-tuned once on many tables, then used as any other model:
 
 ```bash
-python scripts/finetune.py --model v2.5 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics
-python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir --data-root /path/to/data
+python scripts/finetune.py --model v2.5 --data cohort_a.csv cohort_b.csv --target subtype --output runs/ft_mine
 ```
 
-`scripts/evaluate.py --finetune` fine-tunes inside each fold of a benchmark. See
-[examples/05_finetune.py](examples/05_finetune.py).
+```python
+clf = Classifier(model="runs/ft_mine/finetuned.pth").fit(X_train, y_train)
+```
+
+See [examples/05_finetune.py](examples/05_finetune.py).
 
 ## Training your own model
 
@@ -129,7 +119,7 @@ or from Python with `tabomics.training.train` (see [examples/04_train_and_contin
 TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 Its architecture derives from nanoTabPFN [2, 3], and its code from the TFM-Playground repository [4] (Apache License
 2.0); its synthetic-table generator derives from the TabICL prior [5, 6, 7] (BSD 3-Clause License). Its feature
-widening, feature importance method and benchmark protocol follow TabPFN-Wide [8, 9], and its out-of-fold row
+widening and feature importance method follow TabPFN-Wide [8, 9], and its out-of-fold row
 embeddings follow Ye et al. [10]. Its fine-tuning follows TabICL [7] and Rubachev et al. [11]. See [NOTICE](NOTICE)
 and [LICENSES](LICENSES).
 

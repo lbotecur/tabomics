@@ -1,19 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Luis Bote-Curiel
-"""Fine-tunes a model on real tables: a model for a domain, to be evaluated on other tables.
+"""Fine-tunes a model on real tables: a model for a domain, to be used on other tables.
 
-    # v2.5 fine-tuned on the single-omic tables of MLOmics, then evaluated on the Shamir tables (never seen)
-    python -u scripts/finetune.py --model v2.5 --suite mlomics --data-root /path/to/data --output runs/ft_mlomics \
-        --datasets BRCA/mrna COAD/mrna GBM/mrna LGG/mrna OV/mrna --device cuda:0
-    python scripts/evaluate.py --model runs/ft_mlomics/finetuned.pth --suite shamir --data-root /path/to/data
-    # your own tables (CSV, label in --target or the last column)
+    # v2.5 fine-tuned on your own tables (CSV, label in --target or the last column)
     python -u scripts/finetune.py --model v2.5 --data cohort_a.csv cohort_b.csv --target subtype --output runs/ft_mine
 
 Every row of the given tables is used (10% of each held out for early stopping), so tables used here must not be
-the ones the model is evaluated on. To fine-tune on each dataset of a benchmark inside its folds, use
-`scripts/evaluate.py --finetune` instead. Very wide tables may need --max-features (columns per episode) to fit in
-memory. The output directory gets finetuned.pth (usable wherever a model is: Classifier, evaluate.py, export.py),
-history.csv (losses per epoch) and steps.csv.
+the ones the model is evaluated on. Each table is preprocessed as inference does (Classifier): its categorical
+columns are declared with --categorical, one entry per table in the order of --data, as 0-based positions among its
+feature columns (the label column excluded), or inferred (--no-infer-categorical to infer nothing):
+
+    python -u scripts/finetune.py --data a.csv b.csv --categorical 0,3 none --no-infer-categorical --output runs/ft
+
+To fine-tune on the training rows of each fold of a cross-validation, use tabomics.finetuning.FineTunedClassifier
+instead. Very wide tables may need --max-features (columns per episode) to fit in memory. The output directory gets
+finetuned.pth (usable wherever a model is: Classifier, export.py), history.csv (losses per epoch) and steps.csv.
 """
 
 import argparse
@@ -21,7 +22,6 @@ import argparse
 import pandas as pd
 import torch
 
-from tabomics.benchmarks import SUITES
 from tabomics.finetuning import finetune, prepare_table
 from tabomics.hub import DEFAULT_CLASSIFIER
 
@@ -32,11 +32,17 @@ parser.add_argument(
     help="published name (default %(default)s), release directory, .safetensors or .pth",
 )
 parser.add_argument("--output", required=True, help="directory for finetuned.pth and the logs")
-parser.add_argument("--suite", nargs="+", default=[], choices=sorted(SUITES), help="tables of benchmark suites")
-parser.add_argument("--data-root", default=None, help="folder with the benchmark data (with --suite)")
-parser.add_argument("--datasets", nargs="+", default=None, help="only these tasks of the suites, e.g. BRCA/mrna")
-parser.add_argument("--data", nargs="+", default=[], help="CSV tables")
+parser.add_argument("--data", nargs="+", required=True, help="CSV tables")
 parser.add_argument("--target", default=None, help="label column of the CSVs (default: the last one)")
+parser.add_argument(
+    "--categorical",
+    nargs="+",
+    default=None,
+    metavar="POSITIONS",
+    help="categorical columns of each table, in the order of --data: 0-based positions among its feature columns, "
+    "comma separated, or 'none' (e.g. --categorical 0,3 none)",
+)
+parser.add_argument("--no-infer-categorical", action="store_true", help="only the declared columns are categorical")
 parser.add_argument("--device", default=None, help="default: CUDA if available, else CPU")
 parser.add_argument("--epochs", type=int, default=30)
 parser.add_argument("--steps-per-epoch", type=int, default=64)
@@ -51,37 +57,32 @@ parser.add_argument("--prior-fraction", type=float, default=0.0, help="share of 
 parser.add_argument("--precision", default="bf16", choices=["bf16", "fp32"], help="bf16 on GPU only (default)")
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
-if not args.suite and not args.data:
-    parser.error("give tables with --suite and/or --data")
-if args.suite and not args.data_root:
-    parser.error("--suite needs --data-root")
+if args.categorical is not None and len(args.categorical) != len(args.data):
+    parser.error(f"--categorical needs one entry per table: {len(args.data)} tables, {len(args.categorical)} entries")
 
-tables, names, categorical = [], [], []
-for suite in args.suite:
-    module = SUITES[suite]
-    for task in module.tasks(args.data_root):
-        if args.datasets is None or task in args.datasets:
-            X, y, cat = module.load_task(task, args.data_root)
-            tables.append((X, y))
-            names.append(f"{suite}:{task}")
-            categorical.append(cat)
-for path in args.data:
+
+def positions(entry: str) -> list[int]:
+    """'0,3' -> [0, 3]; 'none' -> []."""
+    if entry.lower() == "none":
+        return []
+    try:
+        return [int(p) for p in entry.split(",")]
+    except ValueError:
+        parser.error(f"--categorical takes comma-separated positions or 'none', not {entry!r}")
+
+
+declared = [positions(e) for e in args.categorical] if args.categorical is not None else [None] * len(args.data)
+prepared = []
+for i, (path, categorical) in enumerate(zip(args.data, declared, strict=True)):
     table = pd.read_csv(path)
     target = args.target or table.columns[-1]
-    tables.append((table.drop(columns=target), table[target].to_numpy()))
-    names.append(path)
-    categorical.append(None)
-if not tables:
-    parser.error("no table matched --datasets")
-for name, (X, _) in zip(names, tables, strict=True):
-    print(f"{name}: {X.shape[0]} rows, {X.shape[1]} columns")
-# benchmark tables declare their categorical columns and nothing is inferred (as in evaluate.py); in CSV tables
-# they are inferred, as Classifier does by default
-prepared = [
-    prepare_table(X, y, args.validation_fraction, random_state=args.seed + i, categorical_features=cat,
-                  infer_categorical=cat is None)
-    for i, ((X, y), cat) in enumerate(zip(tables, categorical, strict=True))
-]  # fmt: skip
+    X, y = table.drop(columns=target), table[target].to_numpy()
+    # preprocessed as inference does: declared categorical columns, and the others inferred unless told not to
+    prepared.append(
+        prepare_table(X, y, args.validation_fraction, random_state=args.seed + i, categorical_features=categorical,
+                      infer_categorical=not args.no_infer_categorical)
+    )  # fmt: skip
+    print(f"{path}: {X.shape[0]} rows, {X.shape[1]} columns, {int(prepared[-1].categorical.sum())} categorical")
 
 device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
 amp_dtype = "bfloat16" if args.precision == "bf16" and device.startswith("cuda") else None
