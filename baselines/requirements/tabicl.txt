@@ -1,3 +1,0 @@
-# TabICL (its tree-based prior imports xgboost).
-tabicl>=2.2
-xgboost>=2.0

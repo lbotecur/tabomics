@@ -1,3 +1,0 @@
-# TabPFN-Wide (pins its tabpfn version, which includes TabPFN v2 and TabPFN-3.5).
-# TabPFN-3.5 weights are gated: accept their licence on Hugging Face and log in (hf auth login).
-tabpfnwide

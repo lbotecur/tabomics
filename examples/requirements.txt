@@ -1,2 +1,3 @@
-# Only for the plots of the examples; TabOmics itself needs nothing else.
-matplotlib>=3.7
+# Only for the examples; TabOmics itself needs nothing else.
+matplotlib>=3.7  # the plot of 02
+openml>=0.14  # the leukemia table, downloaded from OpenML by default

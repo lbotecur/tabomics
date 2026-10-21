@@ -46,7 +46,7 @@ print(f"weights of epoch {tuned.best_epoch_} (0 = the pretrained ones)")
 print(tuned.finetune_history_.round(4).to_string(index=False))
 
 # 2. The function, for a model to keep: finetuned.pth and history.csv in --output, usable wherever a model is
-#    (Classifier(model=...), scripts/evaluate.py). Several tables can be given: [(X1, y1), (X2, y2), ...]
+#    (Classifier(model=...), scripts/export.py). Several tables can be given: [(X1, y1), (X2, y2), ...]
 finetune(
     settings["model"], [(X_train, y_train)], device=args.device, amp_dtype="auto", output=args.output, verbose=False,
     categorical_features=[], infer_categorical=False, **quick,

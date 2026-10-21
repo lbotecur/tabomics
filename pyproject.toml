@@ -18,13 +18,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-# One install brings everything (inference, prior, training, benchmarks). Dependencies are added by the pull
+# One install brings everything (inference, prior, training, fine-tuning). Dependencies are added by the pull
 # request that first needs them, with ranges rather than pins so that installing tabomics does not force
 # upgrades on other packages of the environment.
 dependencies = [
     "huggingface_hub>=0.23",
     "numpy>=1.26",
-    "openml>=0.14",
     "pandas>=2.0",
     "safetensors>=0.4",
     "schedulefree>=1.2",
