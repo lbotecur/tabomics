@@ -25,6 +25,7 @@ parser.add_argument("--data-root", required=True, help="folder with the benchmar
 parser.add_argument("--datasets", nargs="+", default=None, help="only these tasks, e.g. arcene BRCA/mrna")
 parser.add_argument("--output", default=None, help="CSV to write (default results/<model>.csv)")
 parser.add_argument("--device", default="cuda", help="for the models that use a GPU")
+parser.add_argument("--retry-failed", action="store_true", help="evaluate again the folds that failed (oom, error)")
 args = parser.parse_args()
 
 output = args.output or f"results/{args.model.replace(':', '_')}.csv"
@@ -35,6 +36,7 @@ results = run_benchmark(
     args.data_root,
     output,
     datasets=args.datasets,
+    retry_failed=args.retry_failed,
 )
 print(summarize(results[results.model == args.model]).round(4).to_string())
 print(f"results: {output}")

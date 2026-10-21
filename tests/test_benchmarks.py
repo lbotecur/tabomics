@@ -143,3 +143,47 @@ def test_evaluate_script_end_to_end(tmp_path):
     results = pd.read_csv(output)
     assert len(results) == 30 and set(results.model) == {"small"} and results.roc_auc.notna().all()
     assert "results:" in result.stdout
+
+
+def test_runner_records_failed_folds_and_goes_on(tmp_path):
+    fake_hdlss(tmp_path, "arcene")
+    fake_hdlss(tmp_path, "colon")
+    output = tmp_path / "out.csv"
+    failing = {"arcene": RuntimeError("CUDA out of memory. Tried to allocate 2.00 GiB"), "colon": ValueError("bad")}
+
+    class Fails:
+        def __init__(self, error):
+            self.error = error
+
+        def fit(self, X, y):
+            raise self.error
+
+    tasks = iter(["arcene"] * 30 + ["colon"] * 30)
+    results = run_benchmark(lambda categorical: Fails(failing[next(tasks)]), "m", ["hdlss"], tmp_path, output,
+                            datasets=["arcene", "colon"], verbose=False)  # fmt: skip
+    assert len(results) == 60 and results.roc_auc.isna().all()
+    by_dataset = results.groupby("dataset").status.unique()
+    assert list(by_dataset["arcene"]) == ["oom"] and list(by_dataset["colon"]) == ["error"]
+    assert results[results.dataset == "colon"].error.str.startswith("ValueError: bad").all()
+    assert summarize(results).loc[("hdlss", "m"), ["datasets", "failed"]].tolist() == [0, 60]
+    # resuming skips the failed folds, unless asked to retry them; then they are replaced
+    again = run_benchmark(lambda c: LogisticRegression(max_iter=1000), "m", ["hdlss"], tmp_path, output,
+                          datasets=["arcene", "colon"], verbose=False)  # fmt: skip
+    assert len(again) == 60 and (again.status != "ok").all()
+    retried = run_benchmark(lambda c: LogisticRegression(max_iter=1000), "m", ["hdlss"], tmp_path, output,
+                            datasets=["arcene", "colon"], verbose=False, retry_failed=True)  # fmt: skip
+    assert len(retried) == 60 and (retried.status == "ok").all() and retried.roc_auc.notna().all()
+    summary = summarize(retried)
+    assert summary.loc[("hdlss", "m"), "datasets"] == 2 and summary.loc[("hdlss", "m"), "failed"] == 0
+
+
+def test_runner_reads_results_written_before_the_status_column(tmp_path):
+    fake_hdlss(tmp_path, "colon")
+    output = tmp_path / "out.csv"
+    factory = lambda categorical: LogisticRegression(max_iter=1000)  # noqa: E731
+    old = run_benchmark(factory, "m", ["hdlss"], tmp_path, output, datasets=["colon"], verbose=False)
+    old.drop(columns=["status", "error"]).to_csv(output, index=False)
+    resumed = run_benchmark(factory, "m", ["hdlss"], tmp_path, output, datasets=["colon"], verbose=False)
+    assert len(resumed) == 30 and (resumed.status == "ok").all()
+    assert "status" not in pd.read_csv(output)  # nothing new to write, so the old file is left as it was
+    assert summarize(pd.read_csv(output)).loc[("hdlss", "m"), "failed"] == 0

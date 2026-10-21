@@ -38,8 +38,11 @@ The data are not redistributed here: each source has its own terms.
 ## Metrics
 
 AUROC (binary: of class 1; multiclass: one-vs-rest, macro average; NaN when a test fold lacks a class) and accuracy,
-per fold, plus the seconds per fold (fit and predict). `summarize` averages per dataset first, so every dataset
-weighs the same.
+per fold, plus the seconds per fold, from building the model (including loading its weights) to the predicted
+probabilities. Each row has a status: `ok`, `oom` (out of memory) or `error` (any other exception, with its message in
+the `error` column); the metrics of a failed fold are NaN. A failed fold does not stop the run, and `--retry-failed`
+evaluates it again. `summarize` averages the successful folds per dataset first, so every dataset weighs the same,
+and counts the failed folds.
 
 ## References
 
