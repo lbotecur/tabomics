@@ -31,7 +31,7 @@ Each run writes one row per fold to `results/<model>.csv` (resumable), with the 
 ## References
 
 [1] C. Kolberg, J. Kreuer, J. Huurdeman, S. Ouaari, K. Eggensperger and N. Pfeifer. *TabPFN-Wide: Continued
-Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs/2510.06162](https://arxiv.org/abs/2510.06162)
+Pre-Training for Extreme Feature Counts*. arXiv:2510.06162v2, 2026 (first version 2025). [arxiv.org/abs/2510.06162v2](https://arxiv.org/abs/2510.06162v2)
 
 [2] N. Hollmann, S. Müller, L. Purucker, A. Krishnakumar, M. Körfer, S. B. Hoo, R. T. Schirrmeister and F. Hutter.
 *Accurate predictions on small data with a tabular foundation model*. Nature, 2025.
