@@ -15,7 +15,8 @@ epoch 300 instead of 100, and it has no stage on 2048 rows; stages 2 and 3 are v
 settings and seeds. All stages: TabICL's tables as TabICL gives them (`raw: false`: clamped and z-scored), rows drawn
 log-uniformly, graphs whose labels depend on no feature resampled, 30-90% training rows, up to 10% missing values,
 1000 batches per epoch, schedule-free AdamW with 500 warmup steps, gradient norm clipped at 1, bf16, gradient
-checkpointing.
+checkpointing. Widening detects categorical columns as those with at most 20 distinct values
+(`"widening_categorical": "detect"`), as the original runs did; the categorical masks of the graph prior are not used.
 
 As v2, the model was trained with feature clip 100 and is used with 10, so the last checkpoint is exported with
 `--feature-clip 10`:
@@ -28,6 +29,8 @@ python scripts/export.py --checkpoint runs/v2.5/3_low_lr/epoch_30.pth --output r
     --feature-clip 10
 ```
 
-With the same seeds and number of workers the tables and augmentations are the same as in the original runs; training
-on a GPU is not bit-for-bit deterministic, so the weights match statistically, not exactly. The original runs had
-uncommitted changes (`git_dirty`), so the code of the time is not exactly known either.
+With the same seeds and number of workers the recipes follow the original runs, but they do not reproduce their
+exact weights: the original runs were not configured to be bit-for-bit deterministic on the GPU; its base stage was
+run before the hash seed of the Python process was fixed, so its tables cannot be regenerated exactly from the seeds
+alone (stages 2 and 3 were run with it fixed); and the runs had uncommitted changes (`git_dirty`), whose exact source
+was not archived.
