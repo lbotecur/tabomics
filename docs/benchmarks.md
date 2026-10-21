@@ -47,7 +47,7 @@ weighs the same.
 Perspective*. ACM Computing Surveys, 2017. [doi.org/10.1145/3136625](https://doi.org/10.1145/3136625)
 
 [2] C. Kolberg, J. Kreuer, J. Huurdeman, S. Ouaari, K. Eggensperger and N. Pfeifer. *TabPFN-Wide: Continued
-Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs/2510.06162](https://arxiv.org/abs/2510.06162)
+Pre-Training for Extreme Feature Counts*. arXiv:2510.06162v2, 2026 (first version 2025). [arxiv.org/abs/2510.06162v2](https://arxiv.org/abs/2510.06162v2)
 
 [3] Z. Yang, R. Kotoge, X. Piao, Z. Chen, L. Zhu, P. Gao, Y. Matsubara, Y. Sakurai and J. Sun. *MLOmics: Cancer
 Multi-Omics Database for Machine Learning*. arXiv:2409.02143, 2024. [arxiv.org/abs/2409.02143](https://arxiv.org/abs/2409.02143)
