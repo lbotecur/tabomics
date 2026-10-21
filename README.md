@@ -144,8 +144,8 @@ TabPFN*. arXiv:2511.03634, 2025. [arxiv.org/abs/2511.03634](https://arxiv.org/ab
 
 [3] AutoML. *nanoTabPFN*. GitHub repository. [github.com/automl/nanoTabPFN](https://github.com/automl/nanoTabPFN)
 
-[4] A. Pfefferle, J. Hog, S. B. Öztürk, K. Kaya, Z. Türkmen and F. Hutter. *TFM-Playground: A Playground for Tabular
-Foundation Models*. GitHub repository. [github.com/automl/TFM-Playground](https://github.com/automl/TFM-Playground)
+[4] Prior Labs GmbH, AutoML Freiburg and A. Pfefferle. *TFM-Playground*. GitHub repository.
+[github.com/automl/TFM-Playground](https://github.com/automl/TFM-Playground)
 
 [5] J. Qu, D. Holzmüller, G. Varoquaux and M. Le Morvan. *TabICL: A Tabular Foundation Model for In-Context Learning
 on Large Data*. ICML, 2025. [arxiv.org/abs/2502.05564](https://arxiv.org/abs/2502.05564)
@@ -157,7 +157,7 @@ foundation model*. ICML, 2026. [arxiv.org/abs/2602.11139](https://arxiv.org/abs/
 [github.com/soda-inria/tabicl](https://github.com/soda-inria/tabicl)
 
 [8] C. Kolberg, J. Kreuer, J. Huurdeman, S. Ouaari, K. Eggensperger and N. Pfeifer. *TabPFN-Wide: Continued
-Pre-Training for Extreme Feature Counts*. arXiv:2510.06162, 2025. [arxiv.org/abs/2510.06162](https://arxiv.org/abs/2510.06162)
+Pre-Training for Extreme Feature Counts*. arXiv:2510.06162v2, 2026 (first version 2025). [arxiv.org/abs/2510.06162v2](https://arxiv.org/abs/2510.06162v2)
 
 [9] J. Kreuer (not-a-feature). *TabPFN-Wide*. GitHub repository.
 [github.com/not-a-feature/TabPFN-Wide](https://github.com/not-a-feature/TabPFN-Wide)
