@@ -178,3 +178,19 @@ def test_bar_distribution_mean():
     left[0] = 0.0  # the left tail: a half-normal below -1 with median at distance 1
     expected = -1.0 - (1.0 / 0.6744897) * np.sqrt(2 / np.pi)
     assert torch.isclose(bar_distribution_mean(left, borders), torch.tensor(expected, dtype=torch.float32))
+
+
+def test_mixed_precision_is_auto_by_default_everywhere():
+    import inspect
+
+    from tabomics.finetuning import FineTunedClassifier, finetune
+    from tabomics.inference.base import resolve_amp_dtype
+
+    for estimator in (Classifier, Regressor, FineTunedClassifier):
+        assert estimator().amp_dtype == "auto"
+    assert inspect.signature(finetune).parameters["amp_dtype"].default == "auto"
+    assert resolve_amp_dtype("auto", torch.device("cuda")) == torch.bfloat16
+    assert resolve_amp_dtype("auto", torch.device("cpu")) is None
+    assert resolve_amp_dtype("bfloat16", torch.device("cpu")) == torch.bfloat16
+    assert resolve_amp_dtype(torch.bfloat16, torch.device("cpu")) == torch.bfloat16
+    assert resolve_amp_dtype(None, torch.device("cuda")) is None

@@ -32,6 +32,7 @@ import torch
 import torch.nn.functional as F
 
 from tabomics.finetuning.episodes import EpisodeLoader, FinetuneTable, prepare_table
+from tabomics.inference.base import resolve_amp_dtype
 from tabomics.model import TabOmicsModel
 from tabomics.model.io import load_model
 from tabomics.prior import PriorLoader
@@ -217,7 +218,8 @@ def finetune(
         prior_fraction: Share of the batches made of synthetic tables, to keep what pretraining taught.
         prior: The synthetic tables (PriorSettings); default PriorSettings().
         device: Where to train; default CUDA if available, else CPU.
-        amp_dtype: Mixed precision ("auto": bfloat16 on CUDA, float32 elsewhere; None: float32).
+        amp_dtype: Mixed precision, as in Classifier: "auto" (the default) runs in bfloat16 on CUDA and in float32
+            elsewhere; torch.bfloat16 (or "bfloat16") always in bfloat16; None always in float32.
         gradient_checkpointing: Recompute each block in the backward pass (less memory, more compute).
         num_mem_chunks: Memory chunks of the validation passes (see Classifier).
         seed: Seed of the validation split, the episodes and the prior.
@@ -234,10 +236,7 @@ def finetune(
     if not 0 <= prior_fraction < 1:
         raise ValueError(f"prior_fraction must be in [0, 1), got {prior_fraction}")
     device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-    if amp_dtype == "auto":
-        amp_dtype = torch.bfloat16 if device.type == "cuda" else None
-    elif isinstance(amp_dtype, str):
-        amp_dtype = getattr(torch, amp_dtype)
+    amp_dtype = resolve_amp_dtype(amp_dtype, device)
 
     prepared = [_prepare(table, validation_fraction, seed + i, preprocessing) for i, table in enumerate(tables)]
     model = copy.deepcopy(load_model(model)).to(device)

@@ -28,11 +28,9 @@ labels = clf.predict(X_test)
 (leave them as NaN). It is a scikit-learn estimator, so `cross_val_score`, pipelines and the like work as usual.
 
 ```python
-import torch
-
 clf = Classifier(
     device="cuda",  # default: CUDA if available, else CPU
-    amp_dtype=torch.bfloat16,  # mixed precision on GPU: much faster on wide tables
+    amp_dtype="auto",  # default: bfloat16 mixed precision on CUDA (much faster on wide tables), else float32
     categorical_features=[],  # indices of categorical columns; [] with infer_categorical=False for omics
     infer_categorical=False,  # otherwise numeric columns with <= 10 distinct values are taken as categorical
     n_estimators=1,  # passes averaged (each one shuffles columns and relabels classes); 1 by default
@@ -83,7 +81,7 @@ fine-tuned on its own training rows only.
 ```python
 from tabomics.finetuning import FineTunedClassifier
 
-clf = FineTunedClassifier(device="cuda", amp_dtype=torch.bfloat16).fit(X_train, y_train)
+clf = FineTunedClassifier(device="cuda").fit(X_train, y_train)
 proba = clf.predict_proba(X_test)
 ```
 
