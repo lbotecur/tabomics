@@ -66,6 +66,19 @@ def model_name(source: TabOmicsModel | str | Path) -> str:
     return str(Path(source).resolve())
 
 
+def resolve_amp_dtype(amp_dtype: torch.dtype | str | None, device: torch.device) -> torch.dtype | None:
+    """The dtype of mixed precision on a device.
+
+    "auto" is bfloat16 on CUDA and None (float32) elsewhere; a dtype name such as "bfloat16" is that torch dtype; a
+    torch dtype or None is kept.
+    """
+    if amp_dtype == "auto":
+        return torch.bfloat16 if device.type == "cuda" else None
+    if isinstance(amp_dtype, str):
+        return getattr(torch, amp_dtype)
+    return amp_dtype
+
+
 def default_device() -> torch.device:
     """CUDA if available, else Apple's MPS, else the CPU."""
     if torch.cuda.is_available():
@@ -84,8 +97,8 @@ class TabOmicsEstimator(BaseEstimator):
             tabomics.hub.DEFAULT_CLASSIFIER, "v2.5").
         cache_dir: Where published models are downloaded; default Hugging Face's cache.
         device: Where to run; default CUDA, else MPS, else CPU.
-        amp_dtype: Mixed precision, e.g. torch.bfloat16 (much faster on wide tables on GPU); None runs in
-            float32.
+        amp_dtype: Mixed precision: "auto" (the default) runs in bfloat16 on CUDA, much faster on wide tables, and in
+            float32 elsewhere; torch.bfloat16 (or "bfloat16") always in bfloat16; None always in float32.
         low_memory: Low-memory inference (True, the default: as accurate, and correct on very large tables),
             the normal path (False), or "auto" (low-memory for large tables only, and as a retry after running out
             of GPU memory). It normalizes inside the memory chunks and keeps the activations in the input dtype
@@ -115,7 +128,7 @@ class TabOmicsEstimator(BaseEstimator):
         model: TabOmicsModel | str | Path | None = None,
         cache_dir: str | Path | None = None,
         device: str | torch.device | None = None,
-        amp_dtype: torch.dtype | None = None,
+        amp_dtype: torch.dtype | str | None = "auto",
         low_memory: bool | str = True,
         num_mem_chunks: int = 8,
         feature_clip: float | None = None,
@@ -218,8 +231,8 @@ class TabOmicsEstimator(BaseEstimator):
 
         def forward(low_memory: bool) -> TabOmicsOutput:
             model.set_low_memory(low_memory)
-            enabled = self.amp_dtype is not None
-            with torch.no_grad(), torch.autocast(self.device_.type, dtype=self.amp_dtype, enabled=enabled):
+            amp_dtype = resolve_amp_dtype(self.amp_dtype, self.device_)
+            with torch.no_grad(), torch.autocast(self.device_.type, dtype=amp_dtype, enabled=amp_dtype is not None):
                 return model.run(x, y, train_size, num_mem_chunks=self.num_mem_chunks, **extras)
 
         if self.low_memory != "auto":

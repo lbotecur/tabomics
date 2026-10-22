@@ -42,7 +42,7 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         bucket_borders: torch.Tensor | str | Path | None = None,
         cache_dir: str | Path | None = None,
         device: str | torch.device | None = None,
-        amp_dtype: torch.dtype | None = None,
+        amp_dtype: torch.dtype | str | None = "auto",
         low_memory: bool | str = True,
         num_mem_chunks: int = 8,
         feature_clip: float | None = None,

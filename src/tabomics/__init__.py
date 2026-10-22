@@ -6,7 +6,7 @@ A small transformer, pretrained on synthetic tables, that classifies a new table
 its training and test rows, no gradient steps), and gives row embeddings and feature importance on the way.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from tabomics.inference import Classifier, Regressor, out_of_fold_embeddings  # noqa: E402
 
