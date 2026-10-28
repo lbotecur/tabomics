@@ -267,7 +267,7 @@ def sample_target_cardinalities(
         size: How many (>= 0).
         max_cats: Largest number of categories (>= 1).
         low: Smallest number of categories (lowered to max_cats if larger).
-        lam: Rate of the exponential: larger favours fewer categories.
+        lam: Rate of the exponential: larger favors fewer categories.
         generator: Random generator (torch's global one if None).
 
     Returns:

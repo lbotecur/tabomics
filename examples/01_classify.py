@@ -32,7 +32,7 @@ proba = cross_val_predict(Classifier(**classifier_settings(args)), X, y, cv=fold
 auroc = roc_auc_score(y, proba[:, 1]) if proba.shape[1] == 2 else roc_auc_score(y, proba, multi_class="ovr")
 print(f"cross-validated AUROC {auroc:.3f}, accuracy {accuracy_score(y, proba.argmax(axis=1)):.3f}")
 
-# 3. Several passes (n_estimators): each one shuffles the column order and relabels the classes, and their
-#    probabilities are averaged. A little more accurate, n times slower; one pass is the default.
+# 3. Several ensemble members (n_estimators): each after the first reorders the columns and renumbers the classes,
+#    and their probabilities are averaged. A little more accurate, n times slower; one member is the default.
 ensemble = Classifier(**classifier_settings(args), n_estimators=4).fit(X_train, y_train)
-print(f"test accuracy with 4 passes {accuracy_score(y_test, ensemble.predict(X_test)):.3f}")
+print(f"test accuracy with 4 members {accuracy_score(y_test, ensemble.predict(X_test)):.3f}")

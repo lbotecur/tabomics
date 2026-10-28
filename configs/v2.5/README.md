@@ -13,7 +13,7 @@ new optimizer.
 v2.5 has the architecture of v2 and differs only in its training: its base stage is the same run as v2's, trained to
 epoch 300 instead of 100, and it has no stage on 2048 rows; stages 2 and 3 are v2's stages 3 and 4 with the same
 settings and seeds. All stages: TabICL's tables as TabICL gives them (`raw: false`: clamped and z-scored), rows drawn
-log-uniformly, graphs whose labels depend on no feature resampled, 30-90% training rows, up to 10% missing values,
+log-uniformly, graphs in which the label shares no ancestor with any feature resampled, 30-90% training rows, up to 10% missing values,
 1000 batches per epoch, schedule-free AdamW with 500 warmup steps, gradient norm clipped at 1, bf16, gradient
 checkpointing. Widening detects categorical columns as those with at most 20 distinct values
 (`"widening_categorical": "detect"`), as the original runs did; the categorical masks of the graph prior are not used.

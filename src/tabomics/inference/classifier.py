@@ -53,7 +53,7 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
     def predict_proba(self, X_test) -> np.ndarray:
         """Class probabilities of the test rows, shape (rows, classes), columns in the order of `classes_`.
 
-        With several estimators, the probabilities of the passes are averaged (each brought back to the original
+        With several members, the probabilities of the members are averaged (each brought back to the original
         class indices first).
         """
         num_classes = len(self.classes_)

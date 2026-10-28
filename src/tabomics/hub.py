@@ -48,7 +48,10 @@ PUBLISHED_MODELS: dict[str, PublishedModel] = {
         revision="5b80160242101a612158820852125b2fb95940ea",
         sha256="9d3d93560f029dea44678a387c3fdd03776ea95ebf3e59861829b2f974f4dac7",
         task="classification",
-        description="TabOmics v2.5: the architecture of v2 with a longer base stage of training (configs/v2.5).",
+        description=(
+            "TabOmics v2.5: the architecture of v2 with a longer base stage and without the stage on longer "
+            "tables (configs/v2.5)."
+        ),
     ),
 }
 DEFAULT_CLASSIFIER = "v2.5"

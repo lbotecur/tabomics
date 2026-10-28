@@ -10,8 +10,7 @@ where TabOmics was developed). Each stage starts from the previous one's weights
 | 3_widening | graph prior, widened (30% of batches) by 200-3000 columns | 2-350 (+ added) | 40-1024 | 1 x 8 | 1e-4 | 30 | 1100 |
 | 4_low_lr | as stage 3 | | | 1 x 8 | 3e-5 | 30 | 1030 |
 
-All stages: TabICL's tables as TabICL gives them (`raw: false`: clamped and z-scored; TabOmics v3 uses raw
-tables), rows drawn log-uniformly, graphs whose labels depend on no feature resampled, 30-90% training rows, up to
+All stages: TabICL's tables as TabICL gives them (`raw: false`: clamped and z-scored), rows drawn log-uniformly, graphs in which the label shares no ancestor with any feature resampled, 30-90% training rows, up to
 10% missing values, 1000 batches per epoch, schedule-free AdamW with 500 warmup steps, gradient norm clipped at 1,
 bf16, gradient checkpointing. Widening detects categorical columns as those with at most 20 distinct values
 (`"widening_categorical": "detect"`), as the original runs did; the categorical masks of the graph prior are not used.

@@ -1,6 +1,7 @@
 cff-version: 1.2.0
 message: "If you use TabOmics, please cite it as below (the paper reference will be added on publication)."
-title: "TabOmics: a tabular foundation model for wide omics data"
+title: "TabOmics: A Small, Open Tabular Foundation Model for Wide Omics Data"
+version: "0.3.0"
 type: software
 authors:
   - family-names: "Bote-Curiel"

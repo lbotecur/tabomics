@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Luis Bote-Curiel
-"""Row embeddings: a vector per patient, for clustering, plots or another model.
+"""Sample embeddings: a vector per patient, for clustering, plots or another model.
 
     python examples/02_embeddings.py               # leukemia; writes embeddings.png (needs matplotlib)
 

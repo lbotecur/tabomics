@@ -96,6 +96,6 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
         return self.y_train_
 
     def predict(self, X_test) -> np.ndarray:
-        """Predicted target of each test row (the mean of its predicted distribution, averaged over the passes)."""
+        """Predicted target of each test row (the mean of its predicted distribution, averaged over the members)."""
         means = [bar_distribution_mean(out.logits.float().squeeze(0), self.borders_) for _, out in self._passes(X_test)]
         return unstandardize(torch.stack(means).mean(dim=0), self.y_mean_, self.y_std_).cpu().numpy()

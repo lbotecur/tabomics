@@ -5,8 +5,9 @@
     python examples/03_interpretability.py         # leukemia: the top genes; writes importance.csv
 
 feature_importance(X_test) returns, for every column, how much the label column attends to it, averaged over the test
-rows, the attention heads and the layers (as TabPFN-Wide). First on a synthetic table whose informative columns are
-known, to see that they come out on top; then on the real table, with the stability of the ranking across passes.
+rows, the attention heads and the blocks (as TabPFN-Wide). First on a synthetic table whose informative columns are
+known, to see that they come out on top; then on the real table, with the stability of the ranking across
+ensemble members.
 """
 
 import numpy as np
@@ -33,14 +34,14 @@ X, y = load_data(args)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y, random_state=0)
 single = pd.Series(Classifier(**classifier_settings(args)).fit(X_train, y_train).feature_importance(X_test), X.columns)
 
-# Stability: with one pass a column's score also reflects its position in the table; several passes put every
+# Stability: with one member a column's score also reflects its position in the table; several members put every
 # column at several positions and average. Compare the rankings.
 several = Classifier(**classifier_settings(args), n_estimators=4).fit(X_train, y_train)
 averaged = pd.Series(several.feature_importance(X_test), X.columns)
 top = 20
 overlap = len(set(single.nlargest(top).index) & set(averaged.nlargest(top).index))
 print(
-    f"\nreal table: 1 pass vs 4 passes, Spearman {spearmanr(single, averaged, nan_policy='omit')[0]:.2f}, "
+    f"\nreal table: 1 member vs 4 members, Spearman {spearmanr(single, averaged, nan_policy='omit')[0]:.2f}, "
     f"top-{top} overlap {overlap}/{top}"
 )
 
@@ -49,8 +50,8 @@ if len(np.unique(y)) == 2:
     t = pd.Series(np.abs(ttest_ind(X_train[y_train == 0], X_train[y_train == 1], nan_policy="omit")[0]), X.columns)
     print(f"Spearman with |t| of a two-class t-test: {spearmanr(averaged, t, nan_policy='omit')[0]:.2f}")
 
-table = pd.DataFrame({"importance_1_pass": single, "importance_4_passes": averaged})
-table.sort_values("importance_4_passes", ascending=False).to_csv("importance.csv")
-print("\ntop columns (4 passes):")
+table = pd.DataFrame({"importance_1_member": single, "importance_4_members": averaged})
+table.sort_values("importance_4_members", ascending=False).to_csv("importance.csv")
+print("\ntop columns (4 members):")
 print(averaged.nlargest(10).round(5).to_string())
 print("wrote importance.csv")
