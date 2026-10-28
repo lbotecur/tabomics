@@ -1,9 +1,9 @@
 # TabOmics
 
 TabOmics is a tabular foundation model for wide omics data. Like TabPFN [1], it is pretrained on synthetic tables and
-uses in-context learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single
+uses in-context learning: given labeled training rows and unlabeled test rows, it predicts the test rows in a single
 forward pass, with no training or tuning on your data. It is designed for wide tables (thousands of features, few
-samples, as in omics), also works on ordinary tables, and provides row embeddings and feature importance.
+samples, as in omics), also works on ordinary tables, and provides sample embeddings and feature importance.
 
 ## Installation
 
@@ -33,11 +33,11 @@ clf = Classifier(
     amp_dtype="auto",  # default: bfloat16 mixed precision on CUDA (much faster on wide tables), else float32
     categorical_features=[],  # indices of categorical columns; [] with infer_categorical=False for omics
     infer_categorical=False,  # otherwise numeric columns with <= 10 distinct values are taken as categorical
-    n_estimators=1,  # passes averaged (each one shuffles columns and relabels classes); 1 by default
+    n_estimators=1,  # ensemble members averaged (columns reordered, classes renumbered at random); 1 by default
 )
 ```
 
-**Row embeddings.** A vector per row, for clustering, plots or another model. A training row is seen together with
+**Sample embeddings.** A vector per sample (row), for clustering, plots or another model. A training row is seen together with
 its own label, so embed the training rows out of fold:
 
 ```python
@@ -47,14 +47,14 @@ train_embeddings = out_of_fold_embeddings(clf, X_train, y_train)  # every row em
 test_embeddings = clf.embeddings(X_test)  # clf is then fitted on all training rows
 ```
 
-**Feature importance.** The attention of the label to each column, averaged over test rows, heads and layers; one score per column:
+**Feature importance.** The attention of the label to each column, averaged over test rows, heads and blocks; one score per column:
 
 ```python
 importance = clf.fit(X_train, y_train).feature_importance(X_test)
 ```
 
 **Large tables.** Tables of tens of thousands of columns fit on one GPU: inference runs in low-memory mode by
-default (`low_memory=True`) and splits each step in pieces (`num_mem_chunks=8`); neither changes the results.
+default (`low_memory=True`) and splits each step in pieces (`num_mem_chunks=8`). Chunking does not change the results; the low-memory mode computes the same function, with different rounding under mixed precision.
 
 The [examples](examples) show all of this on a real gene-expression table, and the training of a model of your own.
 
@@ -62,8 +62,8 @@ The [examples](examples) show all of this on a real gene-expression table, and t
 
 | Name | Description |
 |---|---|
-| `v2.5` (default) | The architecture of v2 with a longer base stage of training. [Model card](https://huggingface.co/lbotecur/tabomics-v2.5) |
-| `v2` | A transformer with 12 layers, an embedding size of 192 and 7.3M parameters, pretrained on synthetic tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
+| `v2.5` (default) | The architecture of v2 with a longer base stage and without the stage on longer tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2.5) |
+| `v2` | A Transformer with 12 blocks, an embedding size of 192 and 7.3M parameters, pretrained on synthetic tables. [Model card](https://huggingface.co/lbotecur/tabomics-v2) |
 
 A name points to a fixed commit of the model's Hugging Face repository and to the SHA-256 of its weights, so it
 always loads the same model. `Classifier(model=...)` also takes a release directory, a `.safetensors` file, a
@@ -112,13 +112,12 @@ python scripts/export.py --checkpoint runs/mine/latest_checkpoint.pth --output r
 
 or from Python with `tabomics.training.train` (see [examples/04_train_and_continue.py](examples/04_train_and_continue.py)).
 
-## Licence and credits
+## License and credits
 
 TabOmics is free software, released under the GNU General Public License v3.0 or later (see [LICENSE](LICENSE)).
 Its architecture derives from nanoTabPFN [2, 3], and its code from the TFM-Playground repository [4] (Apache License
 2.0); its synthetic-table generator derives from the TabICL prior [5, 6, 7] (BSD 3-Clause License). Its feature
-widening and feature importance method follow TabPFN-Wide [8, 9], and its out-of-fold row
-embeddings follow Ye et al. [10]. Its fine-tuning follows TabICL [7] and Rubachev et al. [11]. See [NOTICE](NOTICE)
+widening and feature importance method follow TabPFN-Wide [8, 9], and its out-of-fold sample embeddings follow Ye et al. [10]. Its fine-tuning follows the tabicl package [7] and Rubachev et al. [11]. See [NOTICE](NOTICE)
 and [LICENSES](LICENSES).
 
 ### References
@@ -138,8 +137,7 @@ TabPFN*. arXiv:2511.03634, 2025. [arxiv.org/abs/2511.03634](https://arxiv.org/ab
 [5] J. Qu, D. Holzmüller, G. Varoquaux and M. Le Morvan. *TabICL: A Tabular Foundation Model for In-Context Learning
 on Large Data*. ICML, 2025. [arxiv.org/abs/2502.05564](https://arxiv.org/abs/2502.05564)
 
-[6] J. Qu, D. Holzmüller, G. Varoquaux and M. Le Morvan. *TabICLv2: A better, faster, scalable, and open tabular
-foundation model*. ICML, 2026. [arxiv.org/abs/2602.11139](https://arxiv.org/abs/2602.11139)
+[6] J. Qu, D. Holzmüller, G. Varoquaux and M. Le Morvan. *TabICLv2: A Better, Faster, Scalable, and Open Tabular Foundation Model*. ICML, PMLR 306, 2026. [proceedings.mlr.press/v306/qu26a.html](https://proceedings.mlr.press/v306/qu26a.html)
 
 [7] The Soda research team, Inria. *TabICL*. GitHub repository.
 [github.com/soda-inria/tabicl](https://github.com/soda-inria/tabicl)
@@ -151,7 +149,7 @@ Pre-Training for Extreme Feature Counts*. arXiv:2510.06162v2, 2026 (first versio
 [github.com/not-a-feature/TabPFN-Wide](https://github.com/not-a-feature/TabPFN-Wide)
 
 [10] H.-J. Ye, S.-Y. Liu and W.-L. Chao. *A Closer Look at TabPFN v2: Understanding Its Strengths and Extending Its
-Capabilities*. arXiv:2502.17361, 2025. [arxiv.org/abs/2502.17361](https://arxiv.org/abs/2502.17361)
+Capabilities*. NeurIPS, 2025. [arxiv.org/abs/2502.17361](https://arxiv.org/abs/2502.17361)
 
 [11] I. Rubachev, A. Kotelnikov and N. Kartashev. *On Finetuning Tabular Foundation Models*. arXiv:2506.08982, 2025.
 [arxiv.org/abs/2506.08982](https://arxiv.org/abs/2506.08982)

@@ -6,7 +6,7 @@
     python examples/05_finetune.py --data my.csv --target subtype --device cuda
 
 Fine-tuning trains a copy of the model on episodes of your tables (random subsets of rows and columns, classes
-relabelled), stopping when the loss on 10% of held-out rows stops improving; if no epoch improves on the
+relabeled), stopping when the loss on 10% of held-out rows stops improving; if no epoch improves on the
 pretrained model, the pretrained weights are kept. On one small table the gain is usually small (Rubachev et al.,
 2025); a model fine-tuned on many tables of a domain (scripts/finetune.py) is the other use.
 """

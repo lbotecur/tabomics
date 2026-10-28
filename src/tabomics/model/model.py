@@ -34,7 +34,7 @@ class TabOmicsConfig:
         embedding_size: Size of each cell's embedding.
         num_attention_heads: Heads of both attentions.
         mlp_hidden_size: Hidden size of the MLPs of the blocks and of the decoder.
-        num_layers: Number of transformer blocks.
+        num_layers: Number of Transformer blocks.
         num_outputs: Maximum number of classes.
         feature_clip: Bound of the normalized feature values (see normalize_features).
         permute_columns: Whether the classifier shuffles the columns once, with a fixed seed, before the model

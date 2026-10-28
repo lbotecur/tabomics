@@ -30,10 +30,11 @@ tags:
 
 # TabOmics {name}
 
-TabOmics is a tabular foundation model for wide omics data. It is pretrained on synthetic tables and uses in-context
-learning: given labelled training rows and unlabelled test rows, it predicts the test rows in a single forward pass,
-with no training or tuning on your data. It is designed for wide tables (thousands of features, few samples, as in
-omics), also works on ordinary tables, and provides row embeddings and feature importance.
+TabOmics is a tabular foundation model for wide omics data. It is pretrained only on synthetic tables and uses
+in-context learning: given labeled training rows and unlabeled test rows, it predicts the test rows in a single forward
+pass, with no training or tuning on your data. It is designed for wide tables (thousands of features, few samples, as
+in omics), processes every feature jointly, also works on ordinary tables, and provides sample embeddings and feature
+importance from the same forward pass.
 
 ```python
 from tabomics import Classifier
@@ -41,7 +42,17 @@ clf = Classifier(model="{name}").fit(X_train, y_train)
 proba = clf.predict_proba(X_test)
 ```
 
-Code, documentation and licence: https://github.com/lbotecur/tabomics (GNU General Public License v3.0 or later).
+## Model details
+
+- {task_line}
+- A Transformer of {num_layers} blocks, each with attention between features, attention between rows and an MLP;
+  embedding size {embedding_size}, {num_attention_heads} attention heads, {parameters} parameters.
+- Pretrained only on synthetic tables; the recipes of the published models are in `configs/` of the repository.
+  Standardized features are clipped at {feature_clip:g} at inference.
+- `n_estimators` averages ensemble members: forward passes on copies of the table with the columns reordered and the
+  categories and classes renumbered at random (1 by default).
+
+Code, documentation and license: https://github.com/lbotecur/tabomics (GNU General Public License v3.0 or later).
 """
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -82,7 +93,23 @@ with torch.no_grad():
 assert release.config == model.config
 
 c = model.config
-(Path(output) / "README.md").write_text(CARD.format(name=args.name))
+task_line = (
+    f"Classifier of up to {c.num_outputs} classes."
+    if args.task == "classification"
+    else "Regressor: the label is decoded into a distribution over bins of its standardized value."
+)
+parameters = sum(p.numel() for p in model.parameters())
+(Path(output) / "README.md").write_text(
+    CARD.format(
+        name=args.name,
+        task_line=task_line,
+        num_layers=c.num_layers,
+        embedding_size=c.embedding_size,
+        num_attention_heads=c.num_attention_heads,
+        parameters=f"{parameters / 1e6:.1f}M",
+        feature_clip=c.feature_clip,
+    )
+)
 print(f"release written to {output}: {sorted(p.name for p in Path(output).iterdir())}")
 print(f"config: {c}")
 print(f"sha256 of {WEIGHTS_FILE}: {sha256_of(Path(output) / WEIGHTS_FILE)}")

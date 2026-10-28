@@ -36,7 +36,7 @@ def seed_generation(seed: int, epoch: int, worker: int) -> None:
 def usable_batch(batch) -> dict | None:
     """The usable tables of a prior batch, cropped to the widest one, or None if there are none.
 
-    Unusable tables (no column left after dropping the constant ones, or a failed generation, labelled -100) would
+    Unusable tables (no column left after dropping the constant ones, or a failed generation, labeled -100) would
     crash or corrupt training. Tables in a batch can keep different numbers of columns; the batch keeps the widest
     (the others are zero padded).
 

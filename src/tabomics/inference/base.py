@@ -24,16 +24,17 @@ from tabomics.model.io import load_model
 # With low_memory="auto", a forward pass whose (rows, columns + 1, embedding) table has at least this many
 # elements runs in low-memory mode. Around 2**32 elements the normal path of PyTorch returned wrong results
 # (AUROC 0.5 or NaN on gisette: 7000 rows x 5000 columns x 192) while low-memory was correct; 2**31 keeps a
-# margin. It depends on the table only, not on the GPU, so results do not change across GPUs.
+# margin. The threshold depends on the table only, not on the GPU, so the same path is chosen on every GPU; the
+# wrong results were observed on NVIDIA A100 GPUs.
 LOW_MEMORY_AUTO_ELEMENTS = 2**31
 
 
 @dataclass(frozen=True)
 class EnsembleMember:
-    """One pass of an ensemble: a relabelling of the table that should not change the answer.
+    """One member of an ensemble: a relabeling of the table that should not change the answer.
 
     The model should be indifferent to the order of the columns, to the codes given to the categories of a column,
-    and to the indices given to the classes; it is only approximately so. Averaging over such relabellings removes
+    and to the indices given to the classes; it is only approximately so. Averaging over such relabelings removes
     that residual dependence.
 
     Attributes:
@@ -47,7 +48,7 @@ class EnsembleMember:
     classes: np.ndarray | None = None
 
     def inputs(self, X: np.ndarray) -> np.ndarray:
-        """Applies the relabelling to preprocessed rows (missing values stay missing)."""
+        """Applies the relabeling to preprocessed rows (missing values stay missing)."""
         X = X.copy()
         for column, new_code in self.codes.items():
             observed = ~np.isnan(X[:, column])
@@ -114,9 +115,10 @@ class TabOmicsEstimator(BaseEstimator):
         infer_categorical: Detect the other categorical columns.
         max_unique_for_categorical: Most distinct values of a numeric column inferred as categorical.
         min_samples_for_categorical_inference: Fewest observed rows for that inference.
-        n_estimators: Number of passes averaged. The first is the table as given; each other one relabels it (column
-            order, category codes, and for the classifier class indices). 1, the default, is a single pass.
-        random_state: Seed of those relabellings.
+        n_estimators: Number of ensemble members averaged, each a forward pass on a relabeled copy of the table. The
+            first is the table as given; each other one reorders the columns and renumbers the category codes and,
+            for the classifier, the class indices. 1, the default, is a single forward pass.
+        random_state: Seed of those relabelings.
 
     After fit, `model_name_` says which model was used: a published model by its name ("v2.5"), a file or
     directory by its absolute path (for a model downloaded with huggingface_hub, the path holds the repository and
@@ -183,7 +185,7 @@ class TabOmicsEstimator(BaseEstimator):
         return X
 
     def _make_members(self, num_classes: int | None = None) -> list[EnsembleMember]:
-        """The passes of the ensemble: the table as given, then n_estimators - 1 random relabellings."""
+        """The members of the ensemble: the table as given, then n_estimators - 1 random relabelings."""
         if self.n_estimators < 1:
             raise ValueError(f"n_estimators must be at least 1, got {self.n_estimators}")
         counts = self.preprocessor_.category_counts_
@@ -200,7 +202,7 @@ class TabOmicsEstimator(BaseEstimator):
     def _passes(
         self, X_test, relabel_classes: bool = True, **extras
     ) -> Iterator[tuple[EnsembleMember, TabOmicsOutput]]:
-        """Runs every pass of the ensemble on the training rows and the test rows.
+        """Runs every member of the ensemble on the training rows and the test rows.
 
         Args:
             X_test: Test rows, in the original columns.
@@ -250,15 +252,15 @@ class TabOmicsEstimator(BaseEstimator):
     def embeddings(self, X_test, reduce: str = "mean") -> np.ndarray:
         """Embedding of each test row: its label-column representation before the decoder.
 
-        With several estimators, the passes relabel columns and category codes only: a pass with other class
-        indices encodes the labels differently, and its embeddings would not be comparable.
+        With several members, they reorder the columns and renumber the category codes only: a member with other
+        class indices encodes the labels differently, and its embeddings would not be comparable.
 
         For embeddings of the training rows comparable with these, use out_of_fold_embeddings: a training row
         seen with its own label is not in the same situation as a test row.
 
         Args:
             X_test: Test rows.
-            reduce: "mean" averages the passes; "concat" puts them side by side.
+            reduce: "mean" averages the members; "concat" puts them side by side.
 
         Returns:
             Shape (test rows, embedding size), or (test rows, n_estimators x embedding size) with "concat".
@@ -273,7 +275,7 @@ class TabOmicsEstimator(BaseEstimator):
         return np.mean(pieces, axis=0) if reduce == "mean" else np.concatenate(pieces, axis=1)
 
     def feature_importance(self, X_test, rows: str = "test") -> np.ndarray:
-        """Attention of the label column to each feature, averaged over the test rows, heads and layers.
+        """Attention of the label column to each feature, averaged over the test rows, heads and blocks.
 
         The importance measure of TabPFN-Wide, with one difference: TabPFN-Wide averages over all rows, training
         and test, whose label columns mean different things (a known label in training rows, the prediction being
@@ -281,8 +283,8 @@ class TabOmicsEstimator(BaseEstimator):
         rows only: how much the predictions for X_test draw on each column. `rows` chooses other rows; the
         reasons are set out at LABEL_ATTENTION_ROWS in tabomics.model.layers.
 
-        With several estimators each column has been at several positions, and the scores are averaged over the
-        passes, which removes the effect of the position. Constant columns, never seen by the model, get NaN.
+        With several members each column has been at several positions, and the scores are averaged over the
+        members, which removes the effect of the position. Constant columns, never seen by the model, get NaN.
 
         Args:
             X_test: Test rows (at least one, also with rows="train", which still runs them through the model).
