@@ -189,7 +189,15 @@ def test_feature_clip_is_settable():
     model = small_model(feature_clip=100.0)
     assert model.feature_clip == 100.0
     model.feature_clip = 10
-    assert model.feature_encoder.clip == 10.0
+    assert model.feature_encoder.clip == 10.0 and model.config.feature_clip == 10.0
+
+
+def test_feature_clip_survives_save_and_load(tmp_path):
+    from tabomics.model.io import load_pretrained, save_pretrained
+
+    model = small_model(feature_clip=100.0)
+    model.feature_clip = 10
+    assert load_pretrained(save_pretrained(model, tmp_path / "release")).feature_clip == 10.0
 
 
 def test_config_round_trip_ignores_unknown_keys():

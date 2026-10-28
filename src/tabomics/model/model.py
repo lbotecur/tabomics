@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 import torch
 from torch import nn
@@ -107,7 +107,9 @@ class TabOmicsModel(nn.Module):
 
     @feature_clip.setter
     def feature_clip(self, value: float) -> None:
+        # the configuration follows, so that saving the model keeps the clip it is used with
         self.feature_encoder.clip = float(value)
+        self.config = replace(self.config, feature_clip=float(value))
 
     def set_low_memory(self, enabled: bool) -> None:
         """Turns low-memory inference on or off in every block (see TransformerBlock.low_memory)."""
