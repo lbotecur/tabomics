@@ -105,3 +105,21 @@ def test_regressor_and_bad_values():
     assert all(m.classes is None for m in reg.members_)
     with pytest.raises(ValueError, match="n_estimators"):
         fit(n_estimators=0)
+
+
+@pytest.mark.parametrize("missing", [np.nan, None])
+def test_training_labels_must_not_be_missing(missing):
+    X, y = table()
+    y = y[:60].astype(object)
+    y[3] = missing
+    with pytest.raises(ValueError, match="missing values"):
+        Classifier(model=small_model(), device="cpu").fit(X[:60], y)
+
+
+def test_training_targets_must_not_be_missing():
+    X, _ = table()
+    y = np.random.default_rng(0).normal(size=60)
+    y[3] = np.nan
+    reg = Regressor(model=small_model(20), bucket_borders=torch.linspace(-3, 3, 21), device="cpu")
+    with pytest.raises(ValueError, match="missing values"):
+        reg.fit(X[:60], y)

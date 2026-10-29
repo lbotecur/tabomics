@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from sklearn.base import RegressorMixin
 
-from tabomics.inference.base import TabOmicsEstimator
+from tabomics.inference.base import TabOmicsEstimator, check_targets
 from tabomics.model import TabOmicsModel
 from tabomics.model.bar_distribution import bar_distribution_mean
 from tabomics.model.targets import standardize, target_stats_numpy, unstandardize
@@ -83,7 +83,7 @@ class Regressor(RegressorMixin, TabOmicsEstimator):
             borders = torch.load(borders, map_location="cpu", weights_only=True)
         self.X_train_ = self._prepare(X_train)
         self.borders_ = borders.float()
-        y_train = np.asarray(y_train)
+        y_train = check_targets(y_train)
         self.y_mean_, self.y_std_ = target_stats_numpy(y_train)
         self.y_train_ = standardize(y_train, self.y_mean_, self.y_std_)
         self.members_ = self._make_members()
