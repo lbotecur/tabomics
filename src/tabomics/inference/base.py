@@ -220,7 +220,7 @@ class TabOmicsEstimator(BaseEstimator):
         Args:
             X_test: Test rows, in the original columns.
             relabel_classes: Apply the members' class relabelling (off for embeddings, see embeddings()).
-            **extras: return_embeddings / return_label_attention / label_attention_rows, passed to TabOmicsModel.run.
+            **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
 
         Yields:
             Each member and its output.
@@ -238,7 +238,7 @@ class TabOmicsEstimator(BaseEstimator):
         Args:
             x: Training rows followed by test rows, preprocessed, shape (rows, columns).
             y_train: Training targets as the model reads them (class indices, or standardized values).
-            **extras: return_embeddings / return_label_attention / label_attention_rows, passed to TabOmicsModel.run.
+            **extras: return_embeddings / return_label_attention, passed to TabOmicsModel.run.
         """
         x = torch.from_numpy(x).unsqueeze(0).to(torch.float).to(self.device_)
         y = torch.from_numpy(np.asarray(y_train)).unsqueeze(0).to(torch.float).to(self.device_)
@@ -287,34 +287,36 @@ class TabOmicsEstimator(BaseEstimator):
         ]
         return np.mean(pieces, axis=0) if reduce == "mean" else np.concatenate(pieces, axis=1)
 
-    def feature_importance(self, X_test, rows: str = "test") -> np.ndarray:
-        """Attention of the label column to each feature, averaged over the test rows, heads and blocks.
+    def feature_importance(self, X_test, per_row: bool = False) -> np.ndarray:
+        """Attention of the label column of the test rows to each feature, averaged over the heads and blocks.
 
-        The importance measure of TabPFN-Wide, with one difference: TabPFN-Wide averages over all rows, training
-        and test, whose label columns mean different things (a known label in training rows, the prediction being
-        built in test rows), so its score moves with the train/test split. Here the default averages over the test
-        rows only: how much the predictions for X_test draw on each column. `rows` chooses other rows; the
-        reasons are set out at LABEL_ATTENTION_ROWS in tabomics.model.layers.
+        The importance measure of TabPFN-Wide, computed on the test rows only. TabPFN-Wide averages over all rows,
+        training and test, whose label columns mean different things: a known label in training rows, the
+        prediction being built in test rows. A test row's score is how much its prediction draws on each column,
+        and it does not depend on the other test rows. For the training rows, use out_of_fold_feature_importance:
+        a training row seen with its own label is not in the same situation as a test row.
 
         With several members each column has been at several positions, and the scores are averaged over the
         members, which removes the effect of the position. Constant columns, never seen by the model, get NaN.
 
         Args:
-            X_test: Test rows (at least one, also with rows="train", which still runs them through the model).
-            rows: "test" (default), "train" (the training rows given to fit), or "all" (both, as TabPFN-Wide and
-                tabomics before this option).
+            X_test: Test rows.
+            per_row: One score per test row instead of their mean.
 
         Returns:
-            One score per original column, shape (n_features_in_,).
+            One score per original column, shape (n_features_in_,); with per_row, shape (test rows,
+            n_features_in_), in the order of X_test, whose mean over the rows is the first.
         """
-        total = np.zeros(self.n_features_in_)
-        for member, out in self._passes(X_test, return_label_attention=True, label_attention_rows=rows):
-            attention = out.label_attention[:-1].cpu().numpy()  # the label column is last
-            total[self.preprocessor_.original_columns_[member.columns]] += attention
-        scores = np.full(self.n_features_in_, np.nan)
+        total = None
+        for member, out in self._passes(X_test, return_label_attention=True):
+            attention = out.label_attention[0, :, :-1].cpu().numpy()  # (test rows, columns); the label is last
+            if total is None:
+                total = np.zeros((attention.shape[0], self.n_features_in_))
+            total[:, self.preprocessor_.original_columns_[member.columns]] += attention
+        scores = np.full_like(total, np.nan)
         kept = self.preprocessor_.original_columns_
-        scores[kept] = total[kept] / len(self.members_)
-        return scores
+        scores[:, kept] = total[:, kept] / len(self.members_)
+        return scores if per_row else scores.mean(axis=0)
 
     def _default_model(self) -> str:
         raise ValueError("No model given.")

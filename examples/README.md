@@ -9,7 +9,7 @@ table, `--device cpu` without a GPU, and `--quick` runs a tiny synthetic version
 |---|---|
 | `01_classify.py` | Fit and predict as any scikit-learn classifier; cross-validation; several ensemble members (`n_estimators`). |
 | `02_embeddings.py` | A vector per patient. Training rows are embedded out of fold: embedded directly, they have seen their own label. |
-| `03_interpretability.py` | Feature importance (attention of the label to each column): the informative columns of a synthetic table come out on top; the top genes of the real table, and how stable the ranking is with 1 and 4 members. |
+| `03_interpretability.py` | Feature importance (attention of the label to each column): the informative columns of a synthetic table come out on top; the top genes of the real table, and how stable the ranking is with 1 and 4 members; the top genes of single patients, and the training rows scored out of fold. |
 | `04_train_and_continue.py` | Your own architecture, pretrained from scratch on synthetic tables, then a second stage from its weights with widening. |
 | `05_finetune.py` | Fine-tuning on the training rows (`FineTunedClassifier`), compared with the pretrained model; a fine-tuned model saved and reused. |
 

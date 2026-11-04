@@ -148,21 +148,6 @@ def apply_in_chunks(fn: Callable[[torch.Tensor], torch.Tensor], x: torch.Tensor,
     return x
 
 
-# Rows whose label-column attention makes the feature importance (TabOmicsModel.run, Classifier.feature_importance).
-# The label column means different things in the two kinds of rows:
-#   "test" (the default): a test row's label cell holds no label; across the blocks it gathers, from the row's
-#       features and the training rows, what the decoder reads to classify the row. Its attention to a column is how
-#       much the prediction draws on that column: the importance for prediction. A test row never sees the other
-#       test rows, so the score is the mean of independent per-row scores, and its meaning does not change with
-#       the number of test or training rows.
-#   "train": a training row's label cell holds its known label, so its attention to a column reflects how the
-#       label goes with that column in the context, not how a prediction is made.
-#   "all": both kinds mixed in proportion to their counts, so the score moves with the train/test split. This is
-#       what TabPFN-Wide's get_attention_to_label computes, and what tabomics did before the rows could be chosen;
-#       kept to reproduce those results.
-LABEL_ATTENTION_ROWS = ("test", "train", "all")
-
-
 def label_attention_weights(attention: nn.MultiheadAttention, x: torch.Tensor) -> torch.Tensor:
     """Attention of the last token (the label column) to every token, averaged over heads, for every row.
 
@@ -228,7 +213,7 @@ class TransformerBlock(nn.Module):
         x: torch.Tensor,
         train_size: int,
         num_mem_chunks: int = 1,
-        label_attention_rows: str | None = None,
+        return_label_attention: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         """Applies the block.
 
@@ -236,11 +221,12 @@ class TransformerBlock(nn.Module):
             x: Cell embeddings, shape (B, R, C, E), the label column last.
             train_size: Number of training rows.
             num_mem_chunks: Pieces the memory-heavy steps are split into (inference only, see apply_in_chunks).
-            label_attention_rows: Also return the label column's attention to every column, averaged over these
-                rows ("test", "train" or "all", see LABEL_ATTENTION_ROWS) and the heads; None = do not compute it.
+            return_label_attention: Also return the label column's attention to every column, for each test row,
+                averaged over the heads.
 
         Returns:
-            The new embeddings, shape (B, R, C, E), and the label attention, shape (C,), or None.
+            The new embeddings, shape (B, R, C, E), and the label attention of each test row, shape
+            (B, R - train_size, C), or None.
         """
         batch_size, num_rows, num_columns, embedding_size = x.shape
         low_memory = self.low_memory and not torch.is_grad_enabled()
@@ -251,17 +237,14 @@ class TransformerBlock(nn.Module):
 
         # attention between the columns of each row
         x = x.reshape(batch_size * num_rows, num_columns, embedding_size)
-        capture = label_attention_rows is not None
-        attention_sum = [torch.zeros(num_columns, device=x.device), 0]  # exact mean whatever the chunks
+        num_test = num_rows - train_size
+        # A test row's label cell holds no label: across the blocks it gathers, from the row's features and the
+        # training rows, what the decoder reads to classify the row, so its attention to a column is how much the
+        # prediction draws on that column. A training row's label cell holds its known label instead.
+        label_attention = (
+            torch.empty(batch_size * num_test, num_columns, device=x.device) if return_label_attention else None
+        )
         offset = [0]  # index of the first row of the current chunk (chunks come in order)
-
-        def label_rows(inp: torch.Tensor) -> torch.Tensor:
-            # The rows of x are ordered (table, row): the row of a table is the index modulo num_rows, and the
-            # training rows of every table are its first train_size rows.
-            if label_attention_rows == "all":
-                return inp  # the same tensor, so "all" gives the earlier results bit for bit
-            row = torch.arange(offset[0], offset[0] + inp.shape[0], device=inp.device) % num_rows
-            return inp[row >= train_size] if label_attention_rows == "test" else inp[row < train_size]
 
         def between_columns(inp: torch.Tensor) -> torch.Tensor:
             # need_weights=False lets PyTorch use scaled_dot_product_attention, which never builds the (C, C)
@@ -272,17 +255,21 @@ class TransformerBlock(nn.Module):
             # gradients, bit for bit).
             key, value = (inp, inp) if torch.is_grad_enabled() else _no_fast_path(inp, inp)
             out = self.self_attention_between_features(inp, key, value, need_weights=False)[0]
-            if capture:
-                selected = label_rows(inp)
-                if selected.shape[0]:
-                    weights = label_attention_weights(self.self_attention_between_features, selected)
-                    attention_sum[0] += weights.float().sum(dim=0)
-                    attention_sum[1] += selected.shape[0]
+            if label_attention is not None:
+                # The rows of x are ordered (table, row), and the training rows of every table are its first
+                # train_size rows: a test row r goes to position (r // num_rows) * num_test + r % num_rows - train_size.
+                row = torch.arange(offset[0], offset[0] + inp.shape[0], device=inp.device)
+                test = row % num_rows >= train_size
+                if test.any():
+                    weights = label_attention_weights(self.self_attention_between_features, inp[test])
+                    position = (row[test] // num_rows) * num_test + row[test] % num_rows - train_size
+                    label_attention[position] = weights.float()
                 offset[0] += inp.shape[0]
             return residual_norm(self.norm1, out + inp, inp)
 
         x = apply_in_chunks(between_columns, x, num_mem_chunks)
-        label_attention = (attention_sum[0] / attention_sum[1]).detach() if capture else None
+        if label_attention is not None:
+            label_attention = label_attention.view(batch_size, num_test, num_columns).detach()
         x = x.reshape(batch_size, num_rows, num_columns, embedding_size)
         if not low_memory:
             x = self.norm1(x)
