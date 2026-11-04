@@ -8,7 +8,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from tfmplayground.models.nanotabpfn import NanoTabPFNModel
+from reference_patch import average_test_rows_only
+from tfmplayground.models.nanotabpfn import NanoTabPFNModel, TransformerEncoderLayer
 
 torch.manual_seed(0)
 model = NanoTabPFNModel(embedding_size=16, num_attention_heads=2, mlp_hidden_size=32, num_layers=2, num_outputs=10)
@@ -28,9 +29,12 @@ with torch.no_grad():
     model.save_embeddings = True
     for block in model.transformer_blocks:
         block.save_feature_attention = True
+    original = average_test_rows_only(x.shape[1], train_size)
     model((xt, yt), train_test_split_index=train_size)
+    TransformerEncoderLayer.target_attention = staticmethod(original)
     embeddings = model.embeddings
-    # averaged over all rows, training and test: compared with TabOmicsModel.run(label_attention_rows="all")
+    # averaged over the test rows of both tables, heads and blocks: compared with the mean over tables and test
+    # rows of TabOmicsModel.run(return_label_attention=True).label_attention
     attention = torch.stack([b.feature_attention for b in model.transformer_blocks]).mean(dim=0)
 
 np.savez(
@@ -40,7 +44,7 @@ np.savez(
     train_size=train_size,
     logits=logits.numpy(),
     embeddings=embeddings.numpy(),
-    label_attention=attention.numpy(),
+    test_label_attention=attention.numpy(),
     **{f"weight::{k}": v.numpy() for k, v in model.state_dict().items()},
 )
 print("written", {k: tuple(v.shape) for k, v in model.state_dict().items()}.__len__(), "tensors")

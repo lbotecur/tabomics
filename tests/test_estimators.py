@@ -77,15 +77,14 @@ def test_feature_importance_averages_over_positions():
     assert not np.allclose(scores[:5], single.feature_importance(X_test)[:5])
 
 
-def test_feature_importance_rows():
+def test_feature_importance_per_row():
     clf, X_test = fit(n_estimators=2)
-    test, train, every = (clf.feature_importance(X_test, rows=rows) for rows in ("test", "train", "all"))
-    assert np.array_equal(test, clf.feature_importance(X_test), equal_nan=True)  # test rows by default
-    n_train, n_test = len(clf.X_train_), len(X_test)
-    np.testing.assert_allclose(every[:5], (n_train * train[:5] + n_test * test[:5]) / (n_train + n_test), atol=1e-6)
-    assert np.isnan(train[5]) and np.isnan(every[5])
-    with pytest.raises(ValueError, match="must be one of"):
-        clf.feature_importance(X_test, rows="validation")
+    per_row = clf.feature_importance(X_test, per_row=True)
+    assert per_row.shape == (30, 6) and np.isnan(per_row[:, 5]).all() and np.isfinite(per_row[:, :5]).all()
+    np.testing.assert_allclose(per_row.mean(axis=0), clf.feature_importance(X_test), rtol=0, atol=1e-12)
+    # in the order of X_test, and each row independent of the others
+    np.testing.assert_allclose(clf.feature_importance(X_test[::-1], per_row=True), per_row[::-1], atol=1e-6)
+    np.testing.assert_allclose(clf.feature_importance(X_test[:3], per_row=True), per_row[:3], atol=1e-6)
 
 
 def test_embeddings_mean_and_concat():

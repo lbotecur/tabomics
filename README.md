@@ -47,10 +47,16 @@ train_embeddings = out_of_fold_embeddings(clf, X_train, y_train)  # every row em
 test_embeddings = clf.embeddings(X_test)  # clf is then fitted on all training rows
 ```
 
-**Feature importance.** The attention of the label to each column, averaged over test rows, heads and blocks; one score per column:
+**Feature importance.** The attention of the label of each test row to each column, averaged over heads and blocks:
+one score per column (the mean over the test rows), or one per row and column with `per_row=True`. The training rows
+are scored out of fold, as for the embeddings:
 
 ```python
-importance = clf.fit(X_train, y_train).feature_importance(X_test)
+from tabomics import out_of_fold_feature_importance
+
+importance = clf.fit(X_train, y_train).feature_importance(X_test)  # one score per column
+per_row = clf.feature_importance(X_test, per_row=True)  # (test rows, columns): what each prediction draws on
+train_importance = out_of_fold_feature_importance(clf, X_train, y_train)  # every row scored as a test row
 ```
 
 **Large tables.** Tables of tens of thousands of columns fit on one GPU: inference runs in low-memory mode by

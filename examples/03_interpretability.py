@@ -4,10 +4,11 @@
 
     python examples/03_interpretability.py         # leukemia: the top genes; writes importance.csv
 
-feature_importance(X_test) returns, for every column, how much the label column attends to it, averaged over the test
-rows, the attention heads and the blocks (as TabPFN-Wide). First on a synthetic table whose informative columns are
-known, to see that they come out on top; then on the real table, with the stability of the ranking across
-ensemble members.
+feature_importance(X_test) returns, for every column, how much the label column of the test rows attends to it,
+averaged over the attention heads and the blocks, and over the test rows (per_row=True keeps one score per row).
+First on a synthetic table whose informative columns are known, to see that they come out on top; then on the real
+table, with the stability of the ranking across ensemble members, the top genes of single patients, and the training
+rows scored out of fold.
 """
 
 import numpy as np
@@ -16,7 +17,7 @@ from common import classifier_settings, load_data, parser, synthetic
 from scipy.stats import spearmanr, ttest_ind
 from sklearn.model_selection import train_test_split
 
-from tabomics import Classifier
+from tabomics import Classifier, out_of_fold_feature_importance
 
 args = parser(__doc__.split("\n")[0]).parse_args()
 
@@ -55,3 +56,14 @@ table.sort_values("importance_4_members", ascending=False).to_csv("importance.cs
 print("\ntop columns (4 members):")
 print(averaged.nlargest(10).round(5).to_string())
 print("wrote importance.csv")
+
+# 3. Per patient: the columns each prediction draws on (their mean over the test rows is the importance above)
+per_row = pd.DataFrame(several.feature_importance(X_test, per_row=True), columns=X.columns)
+for i in (0, 1):
+    print(f"test row {i}: top 5 columns", ", ".join(per_row.iloc[i].nlargest(5).index))
+
+# The training rows, out of fold: each fold scored as test rows, with the other folds as context
+folds = 3 if args.quick else 10
+train_scores = pd.Series(out_of_fold_feature_importance(several, X_train, y_train, n_folds=folds), X.columns)
+rho = spearmanr(train_scores, averaged, nan_policy="omit")[0]
+print(f"Spearman of the out-of-fold importance of the training rows with that of the test rows: {rho:.2f}")

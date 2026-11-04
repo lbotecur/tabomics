@@ -5,8 +5,9 @@ import pandas as pd
 import pytest
 import torch
 from sklearn.base import clone
+from sklearn.model_selection import StratifiedKFold
 
-from tabomics import Classifier, Regressor, out_of_fold_embeddings
+from tabomics import Classifier, Regressor, out_of_fold_embeddings, out_of_fold_feature_importance
 from tabomics.inference import FeaturePreprocessor
 from tabomics.model import TabOmicsConfig, TabOmicsModel
 from tabomics.model.bar_distribution import bar_distribution_mean
@@ -152,6 +153,45 @@ def test_out_of_fold_embeddings_cover_every_training_row():
     embeddings = out_of_fold_embeddings(clf, X, y, n_folds=5)
     assert embeddings.shape == (50, 16) and np.isfinite(embeddings).all()
     assert len(clf.X_train_) == 50  # refitted on all the rows
+
+
+def test_out_of_fold_embeddings_reduce():
+    X, y = data(n=50)
+    clf = Classifier(model=small_model(), device="cpu", n_estimators=3)
+    mean = out_of_fold_embeddings(clf, X, y, n_folds=5)
+    concat = out_of_fold_embeddings(clf, X, y, n_folds=5, reduce="concat")
+    assert concat.shape == (50, 48)
+    np.testing.assert_allclose(concat.reshape(50, 3, 16).mean(axis=1), mean, atol=1e-6)
+    with pytest.raises(ValueError, match="reduce"):
+        out_of_fold_embeddings(clf, X, y, reduce="max")
+
+
+def test_out_of_fold_feature_importance_scores_every_row_as_a_test_row():
+    X, y = data(n=50)
+    clf = Classifier(model=small_model(), device="cpu")
+    per_row = out_of_fold_feature_importance(clf, X, y, n_folds=5, per_row=True)
+    assert per_row.shape == (50, 6) and np.isfinite(per_row).all()
+    assert len(clf.X_train_) == 50  # refitted on all the rows
+    np.testing.assert_allclose(out_of_fold_feature_importance(clf, X, y, n_folds=5), per_row.mean(axis=0), atol=1e-12)
+    # each fold, by hand: its rows scored as test rows with the other folds as context, in the order of X
+    folds = StratifiedKFold(5).split(np.zeros(50), y)
+    for context, query in folds:
+        expected = Classifier(model=small_model(), device="cpu").fit(X[context], y[context])
+        np.testing.assert_allclose(per_row[query], expected.feature_importance(X[query], per_row=True), atol=1e-6)
+
+
+def test_out_of_fold_feature_importance_ignores_a_column_constant_in_one_fold():
+    X, y = data(n=50)
+    _, first = next(StratifiedKFold(5).split(np.zeros(50), y))  # the first fold, as the function splits
+    X[:, 4] = 1.0
+    X[first, 4] = 2.0  # constant in the context of the first fold only
+    X[:, 2] = 3.0  # constant everywhere
+    clf = Classifier(model=small_model(), device="cpu")
+    per_row = out_of_fold_feature_importance(clf, X, y, n_folds=5, per_row=True)
+    assert np.isnan(per_row[first, 4]).all() and np.isfinite(np.delete(per_row[:, 4], first)).all()
+    scores = out_of_fold_feature_importance(clf, X, y, n_folds=5)
+    assert np.isfinite(scores[4]) and np.isnan(scores[2])
+    np.testing.assert_allclose(scores[4], np.nanmean(per_row[:, 4]), atol=1e-12)
 
 
 # --- model files and the bar distribution ----------------------------------------------------------------------

@@ -2,7 +2,8 @@
 NanoTabPFNClassifier/NanoTabPFNRegressor, where TabOmics was developed) on a small table with missing values and
 categorical columns, for test_inference_parity.py. The classifier uses the model of parity_model.npz; the
 regressor a small model whose weights are stored here. The reference's feature importance averages the label
-attention over all rows, training and test: test_inference_parity.py compares it with feature_importance(rows="all").
+attention over all rows, training and test; here it is patched to average over the test rows only, as
+feature_importance does (see reference_patch.py).
 Needs TFM-Playground's tfmplayground package; run from the repository root:
     python tests/fixtures/make_inference_fixture.py
 """
@@ -12,8 +13,9 @@ from pathlib import Path
 import numpy as np
 import torch
 from pfns.bar_distribution import FullSupportBarDistribution
+from reference_patch import average_test_rows_only
 from tfmplayground.interface import NanoTabPFNClassifier, NanoTabPFNRegressor
-from tfmplayground.models.nanotabpfn import NanoTabPFNModel
+from tfmplayground.models.nanotabpfn import NanoTabPFNModel, TransformerEncoderLayer
 
 HERE = Path(__file__).parent
 SMALL = dict(embedding_size=16, num_attention_heads=2, mlp_hidden_size=32, num_layers=2)
@@ -48,7 +50,10 @@ for name, kwargs in settings.items():
     clf = NanoTabPFNClassifier(model=classifier_model(), device="cpu", **kwargs).fit(X[train], y_class[train])
     out[f"{name}_proba"] = clf.predict_proba(X[test])
     out[f"{name}_predict"] = clf.predict(X[test]).astype("U1")
+    clf.num_mem_chunks = 1  # average_test_rows_only needs the rows in one piece (the attention does not depend on it)
+    original = average_test_rows_only(n, n_train)
     out[f"{name}_importance"] = clf.feature_attention_scores(X[test])
+    TransformerEncoderLayer.target_attention = staticmethod(original)
     out[f"{name}_embeddings"] = clf.get_embeddings(X[test])
 
 torch.manual_seed(1)
