@@ -11,7 +11,7 @@ import torch
 from sklearn.base import ClassifierMixin
 from sklearn.preprocessing import LabelEncoder
 
-from tabomics.inference.base import TabOmicsEstimator
+from tabomics.inference.base import TabOmicsEstimator, check_targets
 
 
 class Classifier(ClassifierMixin, TabOmicsEstimator):
@@ -32,7 +32,7 @@ class Classifier(ClassifierMixin, TabOmicsEstimator):
         """Stores the training rows and encodes the labels as 0..C-1 (original labels in `classes_`)."""
         self.X_train_ = self._prepare(X_train)
         self.label_encoder_ = LabelEncoder()
-        self.y_train_ = self.label_encoder_.fit_transform(y_train)
+        self.y_train_ = self.label_encoder_.fit_transform(check_targets(y_train))
         self.classes_ = self.label_encoder_.classes_
         if len(self.classes_) > self.model_.config.num_outputs:
             raise ValueError(

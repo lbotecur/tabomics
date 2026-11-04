@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 from sklearn.base import BaseEstimator
 
@@ -27,6 +28,18 @@ from tabomics.model.io import load_model
 # margin. The threshold depends on the table only, not on the GPU, so the same path is chosen on every GPU; the
 # wrong results were observed on NVIDIA A100 GPUs.
 LOW_MEMORY_AUTO_ELEMENTS = 2**31
+
+
+def check_targets(y) -> np.ndarray:
+    """The training labels or targets as an array, refused if any is missing.
+
+    A training row without a label cannot be context, and the classifier would otherwise take the missing value for
+    one more class.
+    """
+    y = np.asarray(y)
+    if pd.isna(y).any():
+        raise ValueError("y contains missing values; drop the training rows without a label")
+    return y
 
 
 @dataclass(frozen=True)
