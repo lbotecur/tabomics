@@ -6,7 +6,7 @@ A small transformer, pretrained on synthetic tables, that classifies a new table
 its training and test rows, no gradient steps), and gives sample embeddings and feature importance on the way.
 """
 
-__version__ = "0.4.0.dev0"
+__version__ = "0.4.0"
 
 from tabomics.inference import (  # noqa: E402
     Classifier,
